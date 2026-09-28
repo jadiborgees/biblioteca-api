@@ -1,92 +1,173 @@
 package com.biblioteca.controller;
 
+import com.biblioteca.assembler.UsuarioModelAssembler;
+import com.biblioteca.exception.UsuarioNotFoundException;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.UsuarioRepository;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springdoc.core.annotations.ParameterObject;
+
+import jakarta.validation.Valid;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/usuarios")
+@Tag(
+        name = "Usuários",
+        description = "Endpoints para gerenciamento dos usuários da biblioteca"
+)
 public class UsuarioController {
 
     private final UsuarioRepository repository;
+    private final UsuarioModelAssembler assembler;
 
+    public UsuarioController(
+            UsuarioRepository repository,
+            UsuarioModelAssembler assembler) {
 
-    public UsuarioController(UsuarioRepository repository) {
         this.repository = repository;
+        this.assembler = assembler;
     }
 
-
-    // GET /usuarios
-    // Lista todos os usuários.
     @GetMapping
-    public List<Usuario> listar() {
-        return repository.findAll();
+    @Operation(
+            summary = "Listar usuários",
+            description = "Retorna os usuários cadastrados de forma paginada."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Usuários listados com sucesso"
+    )
+    public PagedModel<EntityModel<Usuario>> listar(
+            @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Usuario> pagedAssembler) {
+
+        Page<Usuario> usuarios = repository.findAll(pageable);
+
+        return pagedAssembler.toModel(usuarios, assembler);
     }
 
-
-    // GET /usuarios/1
-    // Busca um usuário pelo ID.
     @GetMapping("/{id}")
-    public Usuario buscarPorId(@PathVariable Long id) {
-        return repository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Usuário não encontrado"
-                        )
-                );
+    @Operation(
+            summary = "Buscar usuário por ID",
+            description = "Retorna um usuário específico a partir do seu ID."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Usuário encontrado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Usuário não encontrado"
+            )
+    })
+    public EntityModel<Usuario> buscarPorId(
+            @Parameter(description = "ID do usuário")
+            @PathVariable Long id) {
+
+        Usuario usuario = repository.findById(id)
+                .orElseThrow(() -> new UsuarioNotFoundException(id));
+
+        return assembler.toModel(usuario);
     }
 
-
-    // POST /usuarios
-    // Cadastra um novo usuário.
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Usuario cadastrar(@RequestBody Usuario usuario) {
-        return repository.save(usuario);
+    @Operation(
+            summary = "Cadastrar usuário",
+            description = "Cadastra um novo usuário na biblioteca."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Usuário cadastrado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados do usuário inválidos"
+            )
+    })
+    public EntityModel<Usuario> cadastrar(
+            @Valid @RequestBody Usuario usuario) {
+
+        Usuario novoUsuario = repository.save(usuario);
+
+        return assembler.toModel(novoUsuario);
     }
 
-
-    // PUT /usuarios/1
-    // Atualiza um usuário existente.
     @PutMapping("/{id}")
-    public Usuario atualizar(
+    @Operation(
+            summary = "Atualizar usuário",
+            description = "Atualiza os dados de um usuário existente."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Usuário atualizado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados do usuário inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Usuário não encontrado"
+            )
+    })
+    public EntityModel<Usuario> atualizar(
+            @Parameter(description = "ID do usuário")
             @PathVariable Long id,
-            @RequestBody Usuario usuario) {
+            @Valid @RequestBody Usuario usuario) {
 
         Usuario usuarioExistente = repository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Usuário não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new UsuarioNotFoundException(id));
 
         usuarioExistente.setNome(usuario.getNome());
         usuarioExistente.setEmail(usuario.getEmail());
         usuarioExistente.setTelefone(usuario.getTelefone());
 
-        return repository.save(usuarioExistente);
+        Usuario usuarioAtualizado = repository.save(usuarioExistente);
+
+        return assembler.toModel(usuarioAtualizado);
     }
 
-
-    // DELETE /usuarios/1
-    // Exclui um usuário.
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void excluir(@PathVariable Long id) {
+    @Operation(
+            summary = "Excluir usuário",
+            description = "Exclui um usuário cadastrado a partir do seu ID."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Usuário excluído com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Usuário não encontrado"
+            )
+    })
+    public void excluir(
+            @Parameter(description = "ID do usuário")
+            @PathVariable Long id) {
 
         Usuario usuario = repository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Usuário não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new UsuarioNotFoundException(id));
 
         repository.delete(usuario);
     }
