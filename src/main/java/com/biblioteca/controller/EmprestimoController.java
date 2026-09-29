@@ -1,11 +1,14 @@
 package com.biblioteca.controller;
 
+import com.biblioteca.exception.EmprestimoNotFoundException;
 import com.biblioteca.model.Emprestimo;
 import com.biblioteca.model.Livro;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.EmprestimoRepository;
 import com.biblioteca.repository.LivroRepository;
 import com.biblioteca.repository.UsuarioRepository;
+
+import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +25,6 @@ public class EmprestimoController {
     private final LivroRepository livroRepository;
     private final UsuarioRepository usuarioRepository;
 
-
     public EmprestimoController(
             EmprestimoRepository emprestimoRepository,
             LivroRepository livroRepository,
@@ -33,57 +35,32 @@ public class EmprestimoController {
         this.usuarioRepository = usuarioRepository;
     }
 
-
+    // GET /emprestimos
+    // Lista os empréstimos com paginação.
     @GetMapping
-    // GET /emprestimos -> lista os empréstimos com paginação
     public Page<Emprestimo> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
-
         return emprestimoRepository.findAll(pageable);
     }
 
-
+    // GET /emprestimos/1
+    // Busca um empréstimo pelo ID.
     @GetMapping("/{id}")
-    // GET /emprestimos/1 -> busca um empréstimo pelo ID
     public Emprestimo buscarPorId(@PathVariable Long id) {
 
         return emprestimoRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Empréstimo não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new EmprestimoNotFoundException(id));
     }
 
-
+    // POST /emprestimos
+    // Cadastra um novo empréstimo.
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    // POST /emprestimos -> cadastra um novo empréstimo
-    public Emprestimo cadastrar(@RequestBody Emprestimo emprestimo) {
-
-        if (emprestimo.getLivro() == null ||
-                emprestimo.getLivro().getId() == null) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Informe o livro do empréstimo"
-            );
-        }
-
-
-        if (emprestimo.getUsuario() == null ||
-                emprestimo.getUsuario().getId() == null) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Informe o usuário do empréstimo"
-            );
-        }
-
+    public Emprestimo cadastrar(
+            @Valid @RequestBody Emprestimo emprestimo) {
 
         Livro livro = livroRepository
                 .findById(emprestimo.getLivro().getId())
@@ -94,7 +71,6 @@ public class EmprestimoController {
                         )
                 );
 
-
         Usuario usuario = usuarioRepository
                 .findById(emprestimo.getUsuario().getId())
                 .orElseThrow(() ->
@@ -103,7 +79,6 @@ public class EmprestimoController {
                                 "Usuário não encontrado"
                         )
                 );
-
 
         emprestimo.setLivro(livro);
         emprestimo.setUsuario(usuario);
@@ -111,41 +86,15 @@ public class EmprestimoController {
         return emprestimoRepository.save(emprestimo);
     }
 
-
+    // PUT /emprestimos/1
+    // Atualiza um empréstimo existente.
     @PutMapping("/{id}")
-    // PUT /emprestimos/1 -> atualiza um empréstimo
     public Emprestimo atualizar(
             @PathVariable Long id,
-            @RequestBody Emprestimo emprestimo) {
+            @Valid @RequestBody Emprestimo emprestimo) {
 
         Emprestimo existente = emprestimoRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Empréstimo não encontrado"
-                        )
-                );
-
-
-        if (emprestimo.getLivro() == null ||
-                emprestimo.getLivro().getId() == null) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Informe o livro do empréstimo"
-            );
-        }
-
-
-        if (emprestimo.getUsuario() == null ||
-                emprestimo.getUsuario().getId() == null) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Informe o usuário do empréstimo"
-            );
-        }
-
+                .orElseThrow(() -> new EmprestimoNotFoundException(id));
 
         Livro livro = livroRepository
                 .findById(emprestimo.getLivro().getId())
@@ -156,7 +105,6 @@ public class EmprestimoController {
                         )
                 );
 
-
         Usuario usuario = usuarioRepository
                 .findById(emprestimo.getUsuario().getId())
                 .orElseThrow(() ->
@@ -165,7 +113,6 @@ public class EmprestimoController {
                                 "Usuário não encontrado"
                         )
                 );
-
 
         existente.setDataEmprestimo(emprestimo.getDataEmprestimo());
         existente.setDataDevolucao(emprestimo.getDataDevolucao());
@@ -176,35 +123,26 @@ public class EmprestimoController {
         return emprestimoRepository.save(existente);
     }
 
-
+    // DELETE /emprestimos/1
+    // Exclui um empréstimo pelo ID.
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    // DELETE /emprestimos/1 -> exclui um empréstimo
     public void excluir(@PathVariable Long id) {
 
         if (!emprestimoRepository.existsById(id)) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Empréstimo não encontrado"
-            );
+            throw new EmprestimoNotFoundException(id);
         }
 
         emprestimoRepository.deleteById(id);
     }
 
-
+    // PATCH /emprestimos/1/devolver
+    // Marca o empréstimo como devolvido.
     @PatchMapping("/{id}/devolver")
-    // PATCH /emprestimos/1/devolver -> registra a devolução
     public Emprestimo devolver(@PathVariable Long id) {
 
         Emprestimo emprestimo = emprestimoRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Empréstimo não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new EmprestimoNotFoundException(id));
 
         emprestimo.setDevolvido(true);
 

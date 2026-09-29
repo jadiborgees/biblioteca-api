@@ -1,6 +1,8 @@
 package com.biblioteca.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+
 import java.time.LocalDate;
 
 @Entity
@@ -11,24 +13,39 @@ public class Emprestimo {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull(message = "A data do empréstimo é obrigatória")
     private LocalDate dataEmprestimo;
 
     private LocalDate dataDevolucao;
 
     private boolean devolvido;
 
+    @NotNull(message = "O livro é obrigatório")
     @ManyToOne
     @JoinColumn(name = "livro_id")
     private Livro livro;
 
+    @NotNull(message = "O usuário é obrigatório")
     @ManyToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
 
-
     public Emprestimo() {
     }
 
+    public Emprestimo(
+            LocalDate dataEmprestimo,
+            LocalDate dataDevolucao,
+            boolean devolvido,
+            Livro livro,
+            Usuario usuario) {
+
+        this.dataEmprestimo = dataEmprestimo;
+        this.dataDevolucao = dataDevolucao;
+        this.devolvido = devolvido;
+        this.livro = livro;
+        this.usuario = usuario;
+    }
 
     public Long getId() {
         return id;
@@ -38,7 +55,6 @@ public class Emprestimo {
         this.id = id;
     }
 
-
     public LocalDate getDataEmprestimo() {
         return dataEmprestimo;
     }
@@ -46,7 +62,6 @@ public class Emprestimo {
     public void setDataEmprestimo(LocalDate dataEmprestimo) {
         this.dataEmprestimo = dataEmprestimo;
     }
-
 
     public LocalDate getDataDevolucao() {
         return dataDevolucao;
@@ -56,7 +71,6 @@ public class Emprestimo {
         this.dataDevolucao = dataDevolucao;
     }
 
-
     public boolean isDevolvido() {
         return devolvido;
     }
@@ -65,7 +79,6 @@ public class Emprestimo {
         this.devolvido = devolvido;
     }
 
-
     public Livro getLivro() {
         return livro;
     }
@@ -73,7 +86,6 @@ public class Emprestimo {
     public void setLivro(Livro livro) {
         this.livro = livro;
     }
-
 
     public Usuario getUsuario() {
         return usuario;

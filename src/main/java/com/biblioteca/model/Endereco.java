@@ -1,6 +1,7 @@
 package com.biblioteca.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "enderecos")
@@ -10,22 +11,26 @@ public class Endereco {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "A rua é obrigatória")
     private String rua;
 
+    @NotBlank(message = "O número é obrigatório")
     private String numero;
 
+    @NotBlank(message = "O bairro é obrigatório")
     private String bairro;
 
+    @NotBlank(message = "A cidade é obrigatória")
     private String cidade;
 
+    @NotBlank(message = "O estado é obrigatório")
     private String estado;
 
+    @NotBlank(message = "O CEP é obrigatório")
     private String cep;
-
 
     public Endereco() {
     }
-
 
     public Endereco(
             String rua,
@@ -43,7 +48,6 @@ public class Endereco {
         this.cep = cep;
     }
 
-
     public Long getId() {
         return id;
     }
@@ -51,7 +55,6 @@ public class Endereco {
     public void setId(Long id) {
         this.id = id;
     }
-
 
     public String getRua() {
         return rua;
@@ -61,7 +64,6 @@ public class Endereco {
         this.rua = rua;
     }
 
-
     public String getNumero() {
         return numero;
     }
@@ -69,7 +71,6 @@ public class Endereco {
     public void setNumero(String numero) {
         this.numero = numero;
     }
-
 
     public String getBairro() {
         return bairro;
@@ -79,7 +80,6 @@ public class Endereco {
         this.bairro = bairro;
     }
 
-
     public String getCidade() {
         return cidade;
     }
@@ -88,7 +88,6 @@ public class Endereco {
         this.cidade = cidade;
     }
 
-
     public String getEstado() {
         return estado;
     }
@@ -96,7 +95,6 @@ public class Endereco {
     public void setEstado(String estado) {
         this.estado = estado;
     }
-
 
     public String getCep() {
         return cep;
