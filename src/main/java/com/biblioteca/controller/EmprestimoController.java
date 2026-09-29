@@ -1,5 +1,6 @@
 package com.biblioteca.controller;
 
+import com.biblioteca.assembler.EmprestimoModelAssembler;
 import com.biblioteca.exception.EmprestimoNotFoundException;
 import com.biblioteca.model.Emprestimo;
 import com.biblioteca.model.Livro;
@@ -8,58 +9,76 @@ import com.biblioteca.repository.EmprestimoRepository;
 import com.biblioteca.repository.LivroRepository;
 import com.biblioteca.repository.UsuarioRepository;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/emprestimos")
+@Tag(
+        name = "Empréstimos",
+        description = "Endpoints para gerenciamento de empréstimos"
+)
 public class EmprestimoController {
 
     private final EmprestimoRepository emprestimoRepository;
     private final LivroRepository livroRepository;
     private final UsuarioRepository usuarioRepository;
+    private final EmprestimoModelAssembler assembler;
 
     public EmprestimoController(
             EmprestimoRepository emprestimoRepository,
             LivroRepository livroRepository,
-            UsuarioRepository usuarioRepository) {
+            UsuarioRepository usuarioRepository,
+            EmprestimoModelAssembler assembler) {
 
         this.emprestimoRepository = emprestimoRepository;
         this.livroRepository = livroRepository;
         this.usuarioRepository = usuarioRepository;
+        this.assembler = assembler;
     }
 
     // GET /emprestimos
-    // Lista os empréstimos com paginação.
+    @Operation(summary = "Listar empréstimos")
     @GetMapping
-    public Page<Emprestimo> listar(
+    public Page<EntityModel<Emprestimo>> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "2") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
-        return emprestimoRepository.findAll(pageable);
+
+        return emprestimoRepository
+                .findAll(pageable)
+                .map(assembler::toModel);
     }
 
     // GET /emprestimos/1
-    // Busca um empréstimo pelo ID.
+    @Operation(summary = "Buscar empréstimo por ID")
     @GetMapping("/{id}")
-    public Emprestimo buscarPorId(@PathVariable Long id) {
+    public EntityModel<Emprestimo> buscarPorId(@PathVariable Long id) {
 
-        return emprestimoRepository.findById(id)
-                .orElseThrow(() -> new EmprestimoNotFoundException(id));
+        Emprestimo emprestimo = emprestimoRepository.findById(id)
+                .orElseThrow(() ->
+                        new EmprestimoNotFoundException(id)
+                );
+
+        return assembler.toModel(emprestimo);
     }
 
     // POST /emprestimos
-    // Cadastra um novo empréstimo.
+    @Operation(summary = "Cadastrar empréstimo")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Emprestimo cadastrar(
+    public EntityModel<Emprestimo> cadastrar(
             @Valid @RequestBody Emprestimo emprestimo) {
 
         Livro livro = livroRepository
@@ -83,18 +102,23 @@ public class EmprestimoController {
         emprestimo.setLivro(livro);
         emprestimo.setUsuario(usuario);
 
-        return emprestimoRepository.save(emprestimo);
+        Emprestimo novoEmprestimo =
+                emprestimoRepository.save(emprestimo);
+
+        return assembler.toModel(novoEmprestimo);
     }
 
     // PUT /emprestimos/1
-    // Atualiza um empréstimo existente.
+    @Operation(summary = "Atualizar empréstimo")
     @PutMapping("/{id}")
-    public Emprestimo atualizar(
+    public EntityModel<Emprestimo> atualizar(
             @PathVariable Long id,
             @Valid @RequestBody Emprestimo emprestimo) {
 
         Emprestimo existente = emprestimoRepository.findById(id)
-                .orElseThrow(() -> new EmprestimoNotFoundException(id));
+                .orElseThrow(() ->
+                        new EmprestimoNotFoundException(id)
+                );
 
         Livro livro = livroRepository
                 .findById(emprestimo.getLivro().getId())
@@ -120,11 +144,14 @@ public class EmprestimoController {
         existente.setLivro(livro);
         existente.setUsuario(usuario);
 
-        return emprestimoRepository.save(existente);
+        Emprestimo emprestimoAtualizado =
+                emprestimoRepository.save(existente);
+
+        return assembler.toModel(emprestimoAtualizado);
     }
 
     // DELETE /emprestimos/1
-    // Exclui um empréstimo pelo ID.
+    @Operation(summary = "Excluir empréstimo")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {
@@ -137,15 +164,20 @@ public class EmprestimoController {
     }
 
     // PATCH /emprestimos/1/devolver
-    // Marca o empréstimo como devolvido.
+    @Operation(summary = "Registrar devolução do empréstimo")
     @PatchMapping("/{id}/devolver")
-    public Emprestimo devolver(@PathVariable Long id) {
+    public EntityModel<Emprestimo> devolver(@PathVariable Long id) {
 
         Emprestimo emprestimo = emprestimoRepository.findById(id)
-                .orElseThrow(() -> new EmprestimoNotFoundException(id));
+                .orElseThrow(() ->
+                        new EmprestimoNotFoundException(id)
+                );
 
         emprestimo.setDevolvido(true);
 
-        return emprestimoRepository.save(emprestimo);
+        Emprestimo emprestimoDevolvido =
+                emprestimoRepository.save(emprestimo);
+
+        return assembler.toModel(emprestimoDevolvido);
     }
 }
