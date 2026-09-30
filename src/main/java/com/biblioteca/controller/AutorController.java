@@ -7,6 +7,8 @@ import com.biblioteca.repository.AutorRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/autores")
 @Tag(
         name = "Autores",
-        description = "Endpoints para gerenciamento dos autores da biblioteca"
+        description = "Endpoints para cadastro, consulta, atualização e exclusão dos autores da biblioteca"
 )
 public class AutorController {
 
@@ -48,7 +50,7 @@ public class AutorController {
     @GetMapping
     @Operation(
             summary = "Listar autores",
-            description = "Retorna os autores cadastrados de forma paginada."
+            description = "Retorna todos os autores cadastrados de forma paginada."
     )
     @ApiResponse(
             responseCode = "200",
@@ -64,18 +66,28 @@ public class AutorController {
     }
 
 
-    // CONSULTA PERSONALIZADA - BUSCAR AUTORES POR NOME
+    // BUSCAR AUTORES POR NOME
     @GetMapping("/buscar")
     @Operation(
             summary = "Buscar autores por nome",
-            description = "Busca autores que contenham o texto informado no nome, sem diferenciar letras maiúsculas e minúsculas."
+            description = "Busca autores que contenham o texto informado no nome. A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Busca realizada com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Busca realizada com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Parâmetro de busca inválido"
+            )
+    })
     public PagedModel<EntityModel<Autor>> buscarPorNome(
-            @Parameter(description = "Nome ou parte do nome do autor")
+
+            @Parameter(
+                    description = "Nome completo ou parte do nome do autor",
+                    example = "Machado"
+            )
             @RequestParam String nome,
 
             @ParameterObject Pageable pageable,
@@ -83,7 +95,10 @@ public class AutorController {
             PagedResourcesAssembler<Autor> pagedAssembler) {
 
         Page<Autor> autores =
-                repository.findByNomeContainingIgnoreCase(nome, pageable);
+                repository.findByNomeContainingIgnoreCase(
+                        nome,
+                        pageable
+                );
 
         return pagedAssembler.toModel(autores, assembler);
     }
@@ -93,7 +108,7 @@ public class AutorController {
     @GetMapping("/{id}")
     @Operation(
             summary = "Buscar autor por ID",
-            description = "Retorna um autor específico a partir do seu ID."
+            description = "Retorna os dados de um autor específico a partir do seu identificador."
     )
     @ApiResponses({
             @ApiResponse(
@@ -106,11 +121,17 @@ public class AutorController {
             )
     })
     public EntityModel<Autor> buscarPorId(
-            @Parameter(description = "ID do autor")
+
+            @Parameter(
+                    description = "ID do autor",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Autor autor = repository.findById(id)
-                .orElseThrow(() -> new AutorNotFoundException(id));
+                .orElseThrow(() ->
+                        new AutorNotFoundException(id)
+                );
 
         return assembler.toModel(autor);
     }
@@ -122,6 +143,20 @@ public class AutorController {
     @Operation(
             summary = "Cadastrar autor",
             description = "Cadastra um novo autor na biblioteca."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Dados do autor que será cadastrado",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "nome": "Machado de Assis"
+                                    }
+                                    """
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -146,7 +181,21 @@ public class AutorController {
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar autor",
-            description = "Atualiza os dados de um autor existente."
+            description = "Atualiza os dados de um autor já cadastrado na biblioteca."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Novos dados do autor",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "nome": "Machado de Assis"
+                                    }
+                                    """
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -163,17 +212,24 @@ public class AutorController {
             )
     })
     public EntityModel<Autor> atualizar(
-            @Parameter(description = "ID do autor")
+
+            @Parameter(
+                    description = "ID do autor que será atualizado",
+                    example = "1"
+            )
             @PathVariable Long id,
 
             @Valid @RequestBody Autor autor) {
 
         Autor autorExistente = repository.findById(id)
-                .orElseThrow(() -> new AutorNotFoundException(id));
+                .orElseThrow(() ->
+                        new AutorNotFoundException(id)
+                );
 
         autorExistente.setNome(autor.getNome());
 
-        Autor autorAtualizado = repository.save(autorExistente);
+        Autor autorAtualizado =
+                repository.save(autorExistente);
 
         return assembler.toModel(autorAtualizado);
     }
@@ -184,7 +240,7 @@ public class AutorController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
             summary = "Excluir autor",
-            description = "Exclui um autor cadastrado a partir do seu ID."
+            description = "Exclui permanentemente um autor cadastrado a partir do seu ID."
     )
     @ApiResponses({
             @ApiResponse(
@@ -197,11 +253,17 @@ public class AutorController {
             )
     })
     public void excluir(
-            @Parameter(description = "ID do autor")
+
+            @Parameter(
+                    description = "ID do autor que será excluído",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Autor autor = repository.findById(id)
-                .orElseThrow(() -> new AutorNotFoundException(id));
+                .orElseThrow(() ->
+                        new AutorNotFoundException(id)
+                );
 
         repository.delete(autor);
     }

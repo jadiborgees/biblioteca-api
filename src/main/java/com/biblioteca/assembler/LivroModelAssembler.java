@@ -2,6 +2,7 @@ package com.biblioteca.assembler;
 
 import com.biblioteca.controller.LivroController;
 import com.biblioteca.model.Livro;
+
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
@@ -24,7 +25,15 @@ public class LivroModelAssembler
 
                 linkTo(methodOn(LivroController.class)
                         .listar(null, null))
-                        .withRel("livros")
+                        .withRel("livros"),
+
+                linkTo(methodOn(LivroController.class)
+                        .editar(livro.getId(), null))
+                        .withRel("atualizar"),
+
+                linkTo(LivroController.class)
+                        .slash(livro.getId())
+                        .withRel("excluir")
         );
     }
 }

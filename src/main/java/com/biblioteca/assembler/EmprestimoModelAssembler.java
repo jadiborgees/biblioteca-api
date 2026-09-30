@@ -19,23 +19,29 @@ public class EmprestimoModelAssembler
         return EntityModel.of(
                 emprestimo,
 
-                // Link para o próprio empréstimo.
-                linkTo(
-                        methodOn(EmprestimoController.class)
-                                .buscarPorId(emprestimo.getId())
-                ).withSelfRel(),
+                // Link para o próprio empréstimo
+                linkTo(methodOn(EmprestimoController.class)
+                        .buscarPorId(emprestimo.getId()))
+                        .withSelfRel(),
 
-                // Link para a lista de empréstimos.
-                linkTo(
-                        methodOn(EmprestimoController.class)
-                                .listar(0, 2)
-                ).withRel("emprestimos"),
+                // Link para a lista de empréstimos
+                linkTo(EmprestimoController.class)
+                        .withRel("emprestimos"),
 
-                // Link para registrar a devolução.
-                linkTo(
-                        methodOn(EmprestimoController.class)
-                                .devolver(emprestimo.getId())
-                ).withRel("devolver")
+                // Link para atualizar o empréstimo
+                linkTo(methodOn(EmprestimoController.class)
+                        .atualizar(emprestimo.getId(), null))
+                        .withRel("atualizar"),
+
+                // Link para excluir o empréstimo
+                linkTo(EmprestimoController.class)
+                        .slash(emprestimo.getId())
+                        .withRel("excluir"),
+
+                // Link para registrar a devolução
+                linkTo(methodOn(EmprestimoController.class)
+                        .devolver(emprestimo.getId()))
+                        .withRel("devolver")
         );
     }
 }

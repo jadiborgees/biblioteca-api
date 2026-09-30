@@ -19,15 +19,24 @@ public class EnderecoModelAssembler
         return EntityModel.of(
                 endereco,
 
-                linkTo(
-                        methodOn(EnderecoController.class)
-                                .buscarPorId(endereco.getId())
-                ).withSelfRel(),
+                // Link para o próprio endereço
+                linkTo(methodOn(EnderecoController.class)
+                        .buscarPorId(endereco.getId()))
+                        .withSelfRel(),
 
-                linkTo(
-                        methodOn(EnderecoController.class)
-                                .listar(0, 2)
-                ).withRel("enderecos")
+                // Link para a lista de endereços
+                linkTo(EnderecoController.class)
+                        .withRel("enderecos"),
+
+                // Link para atualizar o endereço
+                linkTo(methodOn(EnderecoController.class)
+                        .atualizar(endereco.getId(), null))
+                        .withRel("atualizar"),
+
+                // Link para excluir o endereço
+                linkTo(EnderecoController.class)
+                        .slash(endereco.getId())
+                        .withRel("excluir")
         );
     }
 }

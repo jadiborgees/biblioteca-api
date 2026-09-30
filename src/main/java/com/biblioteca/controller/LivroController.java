@@ -9,6 +9,8 @@ import com.biblioteca.repository.LivroRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,7 +36,7 @@ import java.util.Set;
 @RequestMapping("/livros")
 @Tag(
         name = "Livros",
-        description = "Endpoints para gerenciamento dos livros da biblioteca"
+        description = "Endpoints para cadastro, consulta, atualização e exclusão dos livros da biblioteca"
 )
 public class LivroController {
 
@@ -57,7 +59,7 @@ public class LivroController {
     @GetMapping
     @Operation(
             summary = "Listar livros",
-            description = "Retorna os livros cadastrados de forma paginada."
+            description = "Retorna todos os livros cadastrados de forma paginada."
     )
     @ApiResponse(
             responseCode = "200",
@@ -77,14 +79,24 @@ public class LivroController {
     @GetMapping("/buscar")
     @Operation(
             summary = "Buscar livros por título",
-            description = "Busca livros que contenham o texto informado no título, sem diferenciar letras maiúsculas e minúsculas."
+            description = "Busca livros que contenham o texto informado no título. A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Busca realizada com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Busca realizada com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Parâmetro de busca inválido"
+            )
+    })
     public PagedModel<EntityModel<Livro>> buscarPorTitulo(
-            @Parameter(description = "Título ou parte do título do livro")
+
+            @Parameter(
+                    description = "Título completo ou parte do título do livro",
+                    example = "Dom"
+            )
             @RequestParam String titulo,
 
             @ParameterObject Pageable pageable,
@@ -92,7 +104,10 @@ public class LivroController {
             PagedResourcesAssembler<Livro> pagedAssembler) {
 
         Page<Livro> livros =
-                repository.findByTituloContainingIgnoreCase(titulo, pageable);
+                repository.findByTituloContainingIgnoreCase(
+                        titulo,
+                        pageable
+                );
 
         return pagedAssembler.toModel(livros, assembler);
     }
@@ -102,7 +117,7 @@ public class LivroController {
     @GetMapping("/{id}")
     @Operation(
             summary = "Buscar livro por ID",
-            description = "Retorna um livro específico a partir do seu ID."
+            description = "Retorna os dados de um livro específico a partir do seu identificador."
     )
     @ApiResponses({
             @ApiResponse(
@@ -115,11 +130,17 @@ public class LivroController {
             )
     })
     public EntityModel<Livro> buscar(
-            @Parameter(description = "ID do livro")
+
+            @Parameter(
+                    description = "ID do livro",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Livro livro = repository.findById(id)
-                .orElseThrow(() -> new LivroNotFoundException(id));
+                .orElseThrow(() ->
+                        new LivroNotFoundException(id)
+                );
 
         return assembler.toModel(livro);
     }
@@ -130,7 +151,28 @@ public class LivroController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Cadastrar livro",
-            description = "Cadastra um novo livro na biblioteca."
+            description = "Cadastra um novo livro na biblioteca. Os autores informados devem estar previamente cadastrados."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Dados do livro que será cadastrado",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "titulo": "Quincas Borba",
+                                      "isbn": "9788535910665",
+                                      "anoPublicacao": 1891,
+                                      "autores": [
+                                        {
+                                          "id": 1
+                                        }
+                                      ]
+                                    }
+                                    """
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -143,7 +185,7 @@ public class LivroController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Autor não encontrado"
+                    description = "Autor informado não encontrado"
             )
     })
     public EntityModel<Livro> cadastrar(
@@ -177,7 +219,28 @@ public class LivroController {
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar livro",
-            description = "Atualiza os dados de um livro existente."
+            description = "Atualiza título, ISBN, ano de publicação e autores de um livro existente."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Novos dados do livro",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "titulo": "Quincas Borba - Edição Atualizada",
+                                      "isbn": "9788535910665",
+                                      "anoPublicacao": 1891,
+                                      "autores": [
+                                        {
+                                          "id": 1
+                                        }
+                                      ]
+                                    }
+                                    """
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -194,13 +257,19 @@ public class LivroController {
             )
     })
     public EntityModel<Livro> editar(
-            @Parameter(description = "ID do livro")
+
+            @Parameter(
+                    description = "ID do livro que será atualizado",
+                    example = "1"
+            )
             @PathVariable Long id,
 
             @Valid @RequestBody Livro livroNovo) {
 
         Livro livro = repository.findById(id)
-                .orElseThrow(() -> new LivroNotFoundException(id));
+                .orElseThrow(() ->
+                        new LivroNotFoundException(id)
+                );
 
         Set<Autor> autores = new HashSet<>();
 
@@ -223,7 +292,8 @@ public class LivroController {
         livro.setAnoPublicacao(livroNovo.getAnoPublicacao());
         livro.setAutores(autores);
 
-        Livro livroAtualizado = repository.save(livro);
+        Livro livroAtualizado =
+                repository.save(livro);
 
         return assembler.toModel(livroAtualizado);
     }
@@ -234,7 +304,7 @@ public class LivroController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
             summary = "Excluir livro",
-            description = "Exclui um livro cadastrado a partir do seu ID."
+            description = "Exclui permanentemente um livro cadastrado a partir do seu ID."
     )
     @ApiResponses({
             @ApiResponse(
@@ -247,11 +317,17 @@ public class LivroController {
             )
     })
     public void excluir(
-            @Parameter(description = "ID do livro")
+
+            @Parameter(
+                    description = "ID do livro que será excluído",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Livro livro = repository.findById(id)
-                .orElseThrow(() -> new LivroNotFoundException(id));
+                .orElseThrow(() ->
+                        new LivroNotFoundException(id)
+                );
 
         repository.delete(livro);
     }

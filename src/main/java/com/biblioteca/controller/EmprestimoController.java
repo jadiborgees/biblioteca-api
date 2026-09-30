@@ -12,16 +12,20 @@ import com.biblioteca.repository.UsuarioRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
 
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -31,7 +35,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/emprestimos")
 @Tag(
         name = "Empréstimos",
-        description = "Endpoints para gerenciamento de empréstimos"
+        description = "Endpoints para cadastro, consulta, atualização, devolução e exclusão de empréstimos"
 )
 public class EmprestimoController {
 
@@ -54,61 +58,109 @@ public class EmprestimoController {
 
 
     // LISTAR EMPRÉSTIMOS
+    @GetMapping
     @Operation(
             summary = "Listar empréstimos",
-            description = "Retorna os empréstimos cadastrados de forma paginada."
+            description = "Retorna todos os empréstimos cadastrados de forma paginada."
     )
     @ApiResponse(
             responseCode = "200",
             description = "Empréstimos listados com sucesso"
     )
-    @GetMapping
-    public Page<EntityModel<Emprestimo>> listar(
+    public PagedModel<EntityModel<Emprestimo>> listar(
+
+            @Parameter(
+                    description = "Número da página, iniciando em 0",
+                    example = "0"
+            )
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "2") int size) {
+
+            @Parameter(
+                    description = "Quantidade de registros por página",
+                    example = "2"
+            )
+            @RequestParam(defaultValue = "2") int size,
+
+            PagedResourcesAssembler<Emprestimo> pagedAssembler) {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        return emprestimoRepository
-                .findAll(pageable)
-                .map(assembler::toModel);
+        return pagedAssembler.toModel(
+                emprestimoRepository.findAll(pageable),
+                assembler
+        );
     }
 
 
-    // CONSULTA PERSONALIZADA - BUSCAR POR STATUS
+    // BUSCAR EMPRÉSTIMOS POR STATUS
+    @GetMapping("/buscar")
     @Operation(
             summary = "Buscar empréstimos por status",
-            description = "Busca empréstimos pelo status informado: ATIVO, DEVOLVIDO ou ATRASADO."
+            description = "Busca empréstimos pelo status informado. Os valores disponíveis são ATIVO, DEVOLVIDO e ATRASADO. O resultado é paginado."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Busca realizada com sucesso"
-    )
-    @GetMapping("/buscar")
-    public Page<EntityModel<Emprestimo>> buscarPorStatus(
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Busca realizada com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Status ou parâmetros de paginação inválidos"
+            )
+    })
+    public PagedModel<EntityModel<Emprestimo>> buscarPorStatus(
+
             @Parameter(
-                    description = "Status do empréstimo: ATIVO, DEVOLVIDO ou ATRASADO"
+                    description = "Status do empréstimo",
+                    example = "ATIVO"
             )
             @RequestParam StatusEmprestimo status,
 
+            @Parameter(
+                    description = "Número da página, iniciando em 0",
+                    example = "0"
+            )
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "2") int size) {
+
+            @Parameter(
+                    description = "Quantidade de registros por página",
+                    example = "2"
+            )
+            @RequestParam(defaultValue = "2") int size,
+
+            PagedResourcesAssembler<Emprestimo> pagedAssembler) {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        return emprestimoRepository
-                .findByStatus(status, pageable)
-                .map(assembler::toModel);
+        return pagedAssembler.toModel(
+                emprestimoRepository.findByStatus(status, pageable),
+                assembler
+        );
     }
 
 
     // BUSCAR EMPRÉSTIMO POR ID
+    @GetMapping("/{id}")
     @Operation(
             summary = "Buscar empréstimo por ID",
-            description = "Retorna um empréstimo específico a partir do seu ID."
+            description = "Retorna os dados de um empréstimo específico a partir do seu identificador."
     )
-    @GetMapping("/{id}")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Empréstimo encontrado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Empréstimo não encontrado"
+            )
+    })
     public EntityModel<Emprestimo> buscarPorId(
+
+            @Parameter(
+                    description = "ID do empréstimo",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Emprestimo emprestimo = emprestimoRepository
@@ -122,12 +174,48 @@ public class EmprestimoController {
 
 
     // CADASTRAR EMPRÉSTIMO
-    @Operation(
-            summary = "Cadastrar empréstimo",
-            description = "Cadastra um novo empréstimo relacionando um livro e um usuário."
-    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            summary = "Cadastrar empréstimo",
+            description = "Cadastra um novo empréstimo relacionando um livro e um usuário previamente cadastrados."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Dados do empréstimo que será cadastrado",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "dataEmprestimo": "2026-09-30",
+                                      "dataDevolucao": null,
+                                      "status": "ATIVO",
+                                      "livro": {
+                                        "id": 1
+                                      },
+                                      "usuario": {
+                                        "id": 1
+                                      }
+                                    }
+                                    """
+                    )
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Empréstimo cadastrado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados do empréstimo inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Livro ou usuário não encontrado"
+            )
+    })
     public EntityModel<Emprestimo> cadastrar(
             @Valid @RequestBody Emprestimo emprestimo) {
 
@@ -160,13 +248,55 @@ public class EmprestimoController {
 
 
     // ATUALIZAR EMPRÉSTIMO
+    @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar empréstimo",
-            description = "Atualiza os dados de um empréstimo existente."
+            description = "Atualiza as datas, o status, o livro e o usuário relacionados a um empréstimo existente."
     )
-    @PutMapping("/{id}")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Novos dados do empréstimo",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "dataEmprestimo": "2026-09-30",
+                                      "dataDevolucao": "2026-10-07",
+                                      "status": "DEVOLVIDO",
+                                      "livro": {
+                                        "id": 1
+                                      },
+                                      "usuario": {
+                                        "id": 1
+                                      }
+                                    }
+                                    """
+                    )
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Empréstimo atualizado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados do empréstimo inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Empréstimo, livro ou usuário não encontrado"
+            )
+    })
     public EntityModel<Emprestimo> atualizar(
+
+            @Parameter(
+                    description = "ID do empréstimo que será atualizado",
+                    example = "1"
+            )
             @PathVariable Long id,
+
             @Valid @RequestBody Emprestimo emprestimo) {
 
         Emprestimo existente = emprestimoRepository
@@ -207,13 +337,29 @@ public class EmprestimoController {
 
 
     // EXCLUIR EMPRÉSTIMO
-    @Operation(
-            summary = "Excluir empréstimo",
-            description = "Exclui um empréstimo cadastrado a partir do seu ID."
-    )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void excluir(@PathVariable Long id) {
+    @Operation(
+            summary = "Excluir empréstimo",
+            description = "Exclui permanentemente um empréstimo cadastrado a partir do seu ID."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Empréstimo excluído com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Empréstimo não encontrado"
+            )
+    })
+    public void excluir(
+
+            @Parameter(
+                    description = "ID do empréstimo que será excluído",
+                    example = "1"
+            )
+            @PathVariable Long id) {
 
         if (!emprestimoRepository.existsById(id)) {
             throw new EmprestimoNotFoundException(id);
@@ -224,12 +370,27 @@ public class EmprestimoController {
 
 
     // REGISTRAR DEVOLUÇÃO
+    @PatchMapping("/{id}/devolver")
     @Operation(
             summary = "Registrar devolução do empréstimo",
-            description = "Altera o status do empréstimo para DEVOLVIDO e registra a data atual como data de devolução."
+            description = "Altera o status do empréstimo para DEVOLVIDO e registra automaticamente a data atual como data de devolução."
     )
-    @PatchMapping("/{id}/devolver")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Devolução registrada com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Empréstimo não encontrado"
+            )
+    })
     public EntityModel<Emprestimo> devolver(
+
+            @Parameter(
+                    description = "ID do empréstimo que será devolvido",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Emprestimo emprestimo = emprestimoRepository

@@ -9,6 +9,8 @@ import com.biblioteca.repository.UsuarioRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/usuarios")
 @Tag(
         name = "Usuários",
-        description = "Endpoints para gerenciamento dos usuários da biblioteca"
+        description = "Endpoints para cadastro, consulta, atualização e exclusão dos usuários da biblioteca"
 )
 public class UsuarioController {
 
@@ -54,7 +56,7 @@ public class UsuarioController {
     @GetMapping
     @Operation(
             summary = "Listar usuários",
-            description = "Retorna os usuários cadastrados de forma paginada."
+            description = "Retorna todos os usuários cadastrados de forma paginada."
     )
     @ApiResponse(
             responseCode = "200",
@@ -70,18 +72,28 @@ public class UsuarioController {
     }
 
 
-    // CONSULTA PERSONALIZADA - BUSCAR USUÁRIOS POR NOME
+    // BUSCAR USUÁRIOS POR NOME
     @GetMapping("/buscar")
     @Operation(
             summary = "Buscar usuários por nome",
-            description = "Busca usuários que contenham o texto informado no nome, sem diferenciar letras maiúsculas e minúsculas."
+            description = "Busca usuários que contenham o texto informado no nome. A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Busca realizada com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Busca realizada com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Parâmetro de busca inválido"
+            )
+    })
     public PagedModel<EntityModel<Usuario>> buscarPorNome(
-            @Parameter(description = "Nome ou parte do nome do usuário")
+
+            @Parameter(
+                    description = "Nome completo ou parte do nome do usuário",
+                    example = "Maria"
+            )
             @RequestParam String nome,
 
             @ParameterObject Pageable pageable,
@@ -89,7 +101,10 @@ public class UsuarioController {
             PagedResourcesAssembler<Usuario> pagedAssembler) {
 
         Page<Usuario> usuarios =
-                repository.findByNomeContainingIgnoreCase(nome, pageable);
+                repository.findByNomeContainingIgnoreCase(
+                        nome,
+                        pageable
+                );
 
         return pagedAssembler.toModel(usuarios, assembler);
     }
@@ -99,7 +114,7 @@ public class UsuarioController {
     @GetMapping("/{id}")
     @Operation(
             summary = "Buscar usuário por ID",
-            description = "Retorna um usuário específico a partir do seu ID."
+            description = "Retorna os dados de um usuário específico a partir do seu identificador."
     )
     @ApiResponses({
             @ApiResponse(
@@ -112,11 +127,17 @@ public class UsuarioController {
             )
     })
     public EntityModel<Usuario> buscarPorId(
-            @Parameter(description = "ID do usuário")
+
+            @Parameter(
+                    description = "ID do usuário",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Usuario usuario = repository.findById(id)
-                .orElseThrow(() -> new UsuarioNotFoundException(id));
+                .orElseThrow(() ->
+                        new UsuarioNotFoundException(id)
+                );
 
         return assembler.toModel(usuario);
     }
@@ -127,7 +148,26 @@ public class UsuarioController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Cadastrar usuário",
-            description = "Cadastra um novo usuário na biblioteca."
+            description = "Cadastra um novo usuário na biblioteca. Caso um endereço seja informado, ele deve estar previamente cadastrado."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Dados do usuário que será cadastrado",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "nome": "Maria Silva",
+                                      "email": "maria@email.com",
+                                      "telefone": "11999999999",
+                                      "endereco": {
+                                        "id": 1
+                                      }
+                                    }
+                                    """
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -140,7 +180,7 @@ public class UsuarioController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Endereço não encontrado"
+                    description = "Endereço informado não encontrado"
             )
     })
     public EntityModel<Usuario> cadastrar(
@@ -170,7 +210,26 @@ public class UsuarioController {
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar usuário",
-            description = "Atualiza os dados de um usuário existente."
+            description = "Atualiza nome, e-mail, telefone e endereço de um usuário existente."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Novos dados do usuário",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "nome": "Maria Silva",
+                                      "email": "maria.silva@email.com",
+                                      "telefone": "11988888888",
+                                      "endereco": {
+                                        "id": 1
+                                      }
+                                    }
+                                    """
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(
@@ -187,12 +246,19 @@ public class UsuarioController {
             )
     })
     public EntityModel<Usuario> atualizar(
-            @Parameter(description = "ID do usuário")
+
+            @Parameter(
+                    description = "ID do usuário que será atualizado",
+                    example = "1"
+            )
             @PathVariable Long id,
+
             @Valid @RequestBody Usuario usuario) {
 
         Usuario usuarioExistente = repository.findById(id)
-                .orElseThrow(() -> new UsuarioNotFoundException(id));
+                .orElseThrow(() ->
+                        new UsuarioNotFoundException(id)
+                );
 
         usuarioExistente.setNome(usuario.getNome());
         usuarioExistente.setEmail(usuario.getEmail());
@@ -212,7 +278,8 @@ public class UsuarioController {
             usuarioExistente.setEndereco(endereco);
         }
 
-        Usuario usuarioAtualizado = repository.save(usuarioExistente);
+        Usuario usuarioAtualizado =
+                repository.save(usuarioExistente);
 
         return assembler.toModel(usuarioAtualizado);
     }
@@ -223,7 +290,7 @@ public class UsuarioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
             summary = "Excluir usuário",
-            description = "Exclui um usuário cadastrado a partir do seu ID."
+            description = "Exclui permanentemente um usuário cadastrado a partir do seu ID."
     )
     @ApiResponses({
             @ApiResponse(
@@ -236,11 +303,17 @@ public class UsuarioController {
             )
     })
     public void excluir(
-            @Parameter(description = "ID do usuário")
+
+            @Parameter(
+                    description = "ID do usuário que será excluído",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Usuario usuario = repository.findById(id)
-                .orElseThrow(() -> new UsuarioNotFoundException(id));
+                .orElseThrow(() ->
+                        new UsuarioNotFoundException(id)
+                );
 
         repository.delete(usuario);
     }

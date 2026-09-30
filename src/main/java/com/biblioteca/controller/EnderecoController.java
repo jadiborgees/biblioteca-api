@@ -7,16 +7,20 @@ import com.biblioteca.repository.EnderecoRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
 
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +29,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/enderecos")
 @Tag(
         name = "Endereços",
-        description = "Endpoints para gerenciamento de endereços"
+        description = "Endpoints para cadastro, consulta, atualização e exclusão de endereços"
 )
 public class EnderecoController {
 
@@ -42,59 +46,109 @@ public class EnderecoController {
 
 
     // LISTAR ENDEREÇOS
+    @GetMapping
     @Operation(
             summary = "Listar endereços",
-            description = "Retorna os endereços cadastrados de forma paginada."
+            description = "Retorna todos os endereços cadastrados de forma paginada."
     )
     @ApiResponse(
             responseCode = "200",
             description = "Endereços listados com sucesso"
     )
-    @GetMapping
-    public Page<EntityModel<Endereco>> listar(
+    public PagedModel<EntityModel<Endereco>> listar(
+
+            @Parameter(
+                    description = "Número da página, iniciando em 0",
+                    example = "0"
+            )
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "2") int size) {
+
+            @Parameter(
+                    description = "Quantidade de registros por página",
+                    example = "2"
+            )
+            @RequestParam(defaultValue = "2") int size,
+
+            PagedResourcesAssembler<Endereco> pagedAssembler) {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        return enderecoRepository
-                .findAll(pageable)
-                .map(assembler::toModel);
+        return pagedAssembler.toModel(
+                enderecoRepository.findAll(pageable),
+                assembler
+        );
     }
 
 
-    // CONSULTA PERSONALIZADA - BUSCAR POR CIDADE
+    // BUSCAR ENDEREÇOS POR CIDADE
+    @GetMapping("/buscar")
     @Operation(
             summary = "Buscar endereços por cidade",
-            description = "Busca endereços que contenham o texto informado no nome da cidade, sem diferenciar letras maiúsculas e minúsculas."
+            description = "Busca endereços que contenham o texto informado no nome da cidade. A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Busca realizada com sucesso"
-    )
-    @GetMapping("/buscar")
-    public Page<EntityModel<Endereco>> buscarPorCidade(
-            @Parameter(description = "Cidade ou parte do nome da cidade")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Busca realizada com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Parâmetro de busca ou paginação inválido"
+            )
+    })
+    public PagedModel<EntityModel<Endereco>> buscarPorCidade(
+
+            @Parameter(
+                    description = "Cidade completa ou parte do nome da cidade",
+                    example = "São Paulo"
+            )
             @RequestParam String cidade,
 
+            @Parameter(
+                    description = "Número da página, iniciando em 0",
+                    example = "0"
+            )
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "2") int size) {
+
+            @Parameter(
+                    description = "Quantidade de registros por página",
+                    example = "2"
+            )
+            @RequestParam(defaultValue = "2") int size,
+
+            PagedResourcesAssembler<Endereco> pagedAssembler) {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        return enderecoRepository
-                .findByCidadeContainingIgnoreCase(cidade, pageable)
-                .map(assembler::toModel);
+        return pagedAssembler.toModel(
+                enderecoRepository.findByCidadeContainingIgnoreCase(cidade, pageable),
+                assembler
+        );
     }
 
 
     // BUSCAR ENDEREÇO POR ID
+    @GetMapping("/{id}")
     @Operation(
             summary = "Buscar endereço por ID",
-            description = "Retorna um endereço específico a partir do seu ID."
+            description = "Retorna os dados de um endereço específico a partir do seu identificador."
     )
-    @GetMapping("/{id}")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Endereço encontrado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Endereço não encontrado"
+            )
+    })
     public EntityModel<Endereco> buscarPorId(
+
+            @Parameter(
+                    description = "ID do endereço",
+                    example = "1"
+            )
             @PathVariable Long id) {
 
         Endereco endereco = enderecoRepository
@@ -108,12 +162,41 @@ public class EnderecoController {
 
 
     // CADASTRAR ENDEREÇO
-    @Operation(
-            summary = "Cadastrar endereço",
-            description = "Cadastra um novo endereço na biblioteca."
-    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            summary = "Cadastrar endereço",
+            description = "Cadastra um novo endereço que poderá ser associado a um usuário da biblioteca."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Dados do endereço que será cadastrado",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "rua": "Rua das Flores",
+                                      "numero": "120",
+                                      "bairro": "Centro",
+                                      "cidade": "São Paulo",
+                                      "estado": "SP",
+                                      "cep": "01001-000"
+                                    }
+                                    """
+                    )
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Endereço cadastrado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados do endereço inválidos"
+            )
+    })
     public EntityModel<Endereco> cadastrar(
             @Valid @RequestBody Endereco endereco) {
 
@@ -125,13 +208,52 @@ public class EnderecoController {
 
 
     // ATUALIZAR ENDEREÇO
+    @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar endereço",
-            description = "Atualiza os dados de um endereço existente."
+            description = "Atualiza rua, número, bairro, cidade, estado e CEP de um endereço existente."
     )
-    @PutMapping("/{id}")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Novos dados do endereço",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(
+                            value = """
+                                    {
+                                      "rua": "Avenida Paulista",
+                                      "numero": "1000",
+                                      "bairro": "Bela Vista",
+                                      "cidade": "São Paulo",
+                                      "estado": "SP",
+                                      "cep": "01310-100"
+                                    }
+                                    """
+                    )
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Endereço atualizado com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados do endereço inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Endereço não encontrado"
+            )
+    })
     public EntityModel<Endereco> atualizar(
+
+            @Parameter(
+                    description = "ID do endereço que será atualizado",
+                    example = "1"
+            )
             @PathVariable Long id,
+
             @Valid @RequestBody Endereco endereco) {
 
         Endereco existente = enderecoRepository
@@ -155,13 +277,29 @@ public class EnderecoController {
 
 
     // EXCLUIR ENDEREÇO
-    @Operation(
-            summary = "Excluir endereço",
-            description = "Exclui um endereço cadastrado a partir do seu ID."
-    )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void excluir(@PathVariable Long id) {
+    @Operation(
+            summary = "Excluir endereço",
+            description = "Exclui permanentemente um endereço cadastrado a partir do seu ID."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Endereço excluído com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Endereço não encontrado"
+            )
+    })
+    public void excluir(
+
+            @Parameter(
+                    description = "ID do endereço que será excluído",
+                    example = "1"
+            )
+            @PathVariable Long id) {
 
         if (!enderecoRepository.existsById(id)) {
             throw new EnderecoNotFoundException(id);
