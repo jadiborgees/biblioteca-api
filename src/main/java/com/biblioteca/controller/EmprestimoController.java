@@ -4,6 +4,7 @@ import com.biblioteca.assembler.EmprestimoModelAssembler;
 import com.biblioteca.exception.EmprestimoNotFoundException;
 import com.biblioteca.model.Emprestimo;
 import com.biblioteca.model.Livro;
+import com.biblioteca.model.StatusEmprestimo;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.EmprestimoRepository;
 import com.biblioteca.repository.LivroRepository;
@@ -47,6 +48,7 @@ public class EmprestimoController {
         this.assembler = assembler;
     }
 
+
     // GET /emprestimos
     @Operation(summary = "Listar empréstimos")
     @GetMapping
@@ -61,6 +63,7 @@ public class EmprestimoController {
                 .map(assembler::toModel);
     }
 
+
     // GET /emprestimos/1
     @Operation(summary = "Buscar empréstimo por ID")
     @GetMapping("/{id}")
@@ -73,6 +76,7 @@ public class EmprestimoController {
 
         return assembler.toModel(emprestimo);
     }
+
 
     // POST /emprestimos
     @Operation(summary = "Cadastrar empréstimo")
@@ -108,6 +112,7 @@ public class EmprestimoController {
         return assembler.toModel(novoEmprestimo);
     }
 
+
     // PUT /emprestimos/1
     @Operation(summary = "Atualizar empréstimo")
     @PutMapping("/{id}")
@@ -140,7 +145,7 @@ public class EmprestimoController {
 
         existente.setDataEmprestimo(emprestimo.getDataEmprestimo());
         existente.setDataDevolucao(emprestimo.getDataDevolucao());
-        existente.setDevolvido(emprestimo.isDevolvido());
+        existente.setStatus(emprestimo.getStatus());
         existente.setLivro(livro);
         existente.setUsuario(usuario);
 
@@ -149,6 +154,7 @@ public class EmprestimoController {
 
         return assembler.toModel(emprestimoAtualizado);
     }
+
 
     // DELETE /emprestimos/1
     @Operation(summary = "Excluir empréstimo")
@@ -163,6 +169,7 @@ public class EmprestimoController {
         emprestimoRepository.deleteById(id);
     }
 
+
     // PATCH /emprestimos/1/devolver
     @Operation(summary = "Registrar devolução do empréstimo")
     @PatchMapping("/{id}/devolver")
@@ -173,7 +180,8 @@ public class EmprestimoController {
                         new EmprestimoNotFoundException(id)
                 );
 
-        emprestimo.setDevolvido(true);
+        emprestimo.setStatus(StatusEmprestimo.DEVOLVIDO);
+        emprestimo.setDataDevolucao(java.time.LocalDate.now());
 
         Emprestimo emprestimoDevolvido =
                 emprestimoRepository.save(emprestimo);

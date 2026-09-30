@@ -1,12 +1,12 @@
 package com.biblioteca.model;
 // Pacote onde está a classe Livro.
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.HashSet;
+import java.util.Set;
 // Imports necessários.
 
 @Entity
@@ -31,9 +31,19 @@ public class Livro {
     // O ano precisa ser informado.
     private Integer anoPublicacao;
 
+    @ManyToMany
+    @JoinTable(
+            name = "livro_autor",
+            joinColumns = @JoinColumn(name = "livro_id"),
+            inverseJoinColumns = @JoinColumn(name = "autor_id")
+    )
+    private Set<Autor> autores = new HashSet<>();
+
+
     public Livro() {
     }
     // Construtor vazio usado pelo JPA.
+
 
     public Livro(String titulo, String isbn, Integer anoPublicacao) {
         this.titulo = titulo;
@@ -41,9 +51,11 @@ public class Livro {
         this.anoPublicacao = anoPublicacao;
     }
 
+
     public Long getId() {
         return id;
     }
+
 
     public String getTitulo() {
         return titulo;
@@ -53,6 +65,7 @@ public class Livro {
         this.titulo = titulo;
     }
 
+
     public String getIsbn() {
         return isbn;
     }
@@ -61,11 +74,21 @@ public class Livro {
         this.isbn = isbn;
     }
 
+
     public Integer getAnoPublicacao() {
         return anoPublicacao;
     }
 
     public void setAnoPublicacao(Integer anoPublicacao) {
         this.anoPublicacao = anoPublicacao;
+    }
+
+
+    public Set<Autor> getAutores() {
+        return autores;
+    }
+
+    public void setAutores(Set<Autor> autores) {
+        this.autores = autores;
     }
 }

@@ -2,7 +2,9 @@ package com.biblioteca.controller;
 
 import com.biblioteca.assembler.LivroModelAssembler;
 import com.biblioteca.exception.LivroNotFoundException;
+import com.biblioteca.model.Autor;
 import com.biblioteca.model.Livro;
+import com.biblioteca.repository.AutorRepository;
 import com.biblioteca.repository.LivroRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +25,10 @@ import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/livros")
@@ -33,15 +39,19 @@ import org.springframework.web.bind.annotation.*;
 public class LivroController {
 
     private final LivroRepository repository;
+    private final AutorRepository autorRepository;
     private final LivroModelAssembler assembler;
 
     public LivroController(
             LivroRepository repository,
+            AutorRepository autorRepository,
             LivroModelAssembler assembler) {
 
         this.repository = repository;
+        this.autorRepository = autorRepository;
         this.assembler = assembler;
     }
+
 
     @GetMapping
     @Operation(
@@ -60,6 +70,7 @@ public class LivroController {
 
         return pagedAssembler.toModel(livros, assembler);
     }
+
 
     @GetMapping("/{id}")
     @Operation(
@@ -86,6 +97,7 @@ public class LivroController {
         return assembler.toModel(livro);
     }
 
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -100,15 +112,38 @@ public class LivroController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Dados do livro inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Autor não encontrado"
             )
     })
     public EntityModel<Livro> cadastrar(
             @Valid @RequestBody Livro livro) {
 
+        Set<Autor> autores = new HashSet<>();
+
+        for (Autor autorRecebido : livro.getAutores()) {
+
+            Autor autor = autorRepository
+                    .findById(autorRecebido.getId())
+                    .orElseThrow(() ->
+                            new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND,
+                                    "Autor não encontrado"
+                            )
+                    );
+
+            autores.add(autor);
+        }
+
+        livro.setAutores(autores);
+
         Livro novoLivro = repository.save(livro);
 
         return assembler.toModel(novoLivro);
     }
+
 
     @PutMapping("/{id}")
     @Operation(
@@ -126,7 +161,7 @@ public class LivroController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Livro não encontrado"
+                    description = "Livro ou autor não encontrado"
             )
     })
     public EntityModel<Livro> editar(
@@ -137,14 +172,32 @@ public class LivroController {
         Livro livro = repository.findById(id)
                 .orElseThrow(() -> new LivroNotFoundException(id));
 
+        Set<Autor> autores = new HashSet<>();
+
+        for (Autor autorRecebido : livroNovo.getAutores()) {
+
+            Autor autor = autorRepository
+                    .findById(autorRecebido.getId())
+                    .orElseThrow(() ->
+                            new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND,
+                                    "Autor não encontrado"
+                            )
+                    );
+
+            autores.add(autor);
+        }
+
         livro.setTitulo(livroNovo.getTitulo());
         livro.setIsbn(livroNovo.getIsbn());
         livro.setAnoPublicacao(livroNovo.getAnoPublicacao());
+        livro.setAutores(autores);
 
         Livro livroAtualizado = repository.save(livro);
 
         return assembler.toModel(livroAtualizado);
     }
+
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

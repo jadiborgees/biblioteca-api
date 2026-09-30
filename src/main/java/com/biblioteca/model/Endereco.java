@@ -1,5 +1,6 @@
 package com.biblioteca.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 
@@ -29,8 +30,14 @@ public class Endereco {
     @NotBlank(message = "O CEP é obrigatório")
     private String cep;
 
+    @OneToOne(mappedBy = "endereco")
+    @JsonIgnore
+    private Usuario usuario;
+
+
     public Endereco() {
     }
+
 
     public Endereco(
             String rua,
@@ -48,6 +55,7 @@ public class Endereco {
         this.cep = cep;
     }
 
+
     public Long getId() {
         return id;
     }
@@ -55,6 +63,7 @@ public class Endereco {
     public void setId(Long id) {
         this.id = id;
     }
+
 
     public String getRua() {
         return rua;
@@ -64,6 +73,7 @@ public class Endereco {
         this.rua = rua;
     }
 
+
     public String getNumero() {
         return numero;
     }
@@ -71,6 +81,7 @@ public class Endereco {
     public void setNumero(String numero) {
         this.numero = numero;
     }
+
 
     public String getBairro() {
         return bairro;
@@ -80,6 +91,7 @@ public class Endereco {
         this.bairro = bairro;
     }
 
+
     public String getCidade() {
         return cidade;
     }
@@ -87,6 +99,7 @@ public class Endereco {
     public void setCidade(String cidade) {
         this.cidade = cidade;
     }
+
 
     public String getEstado() {
         return estado;
@@ -96,11 +109,21 @@ public class Endereco {
         this.estado = estado;
     }
 
+
     public String getCep() {
         return cep;
     }
 
     public void setCep(String cep) {
         this.cep = cep;
+    }
+
+
+    public Usuario getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(Usuario usuario) {
+        this.usuario = usuario;
     }
 }

@@ -2,7 +2,9 @@ package com.biblioteca.controller;
 
 import com.biblioteca.assembler.UsuarioModelAssembler;
 import com.biblioteca.exception.UsuarioNotFoundException;
+import com.biblioteca.model.Endereco;
 import com.biblioteca.model.Usuario;
+import com.biblioteca.repository.EnderecoRepository;
 import com.biblioteca.repository.UsuarioRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +25,7 @@ import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/usuarios")
@@ -33,15 +36,19 @@ import org.springframework.web.bind.annotation.*;
 public class UsuarioController {
 
     private final UsuarioRepository repository;
+    private final EnderecoRepository enderecoRepository;
     private final UsuarioModelAssembler assembler;
 
     public UsuarioController(
             UsuarioRepository repository,
+            EnderecoRepository enderecoRepository,
             UsuarioModelAssembler assembler) {
 
         this.repository = repository;
+        this.enderecoRepository = enderecoRepository;
         this.assembler = assembler;
     }
+
 
     @GetMapping
     @Operation(
@@ -60,6 +67,7 @@ public class UsuarioController {
 
         return pagedAssembler.toModel(usuarios, assembler);
     }
+
 
     @GetMapping("/{id}")
     @Operation(
@@ -86,6 +94,7 @@ public class UsuarioController {
         return assembler.toModel(usuario);
     }
 
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -100,15 +109,34 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Dados do usuário inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Endereço não encontrado"
             )
     })
     public EntityModel<Usuario> cadastrar(
             @Valid @RequestBody Usuario usuario) {
 
+        if (usuario.getEndereco() != null) {
+
+            Endereco endereco = enderecoRepository
+                    .findById(usuario.getEndereco().getId())
+                    .orElseThrow(() ->
+                            new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND,
+                                    "Endereço não encontrado"
+                            )
+                    );
+
+            usuario.setEndereco(endereco);
+        }
+
         Usuario novoUsuario = repository.save(usuario);
 
         return assembler.toModel(novoUsuario);
     }
+
 
     @PutMapping("/{id}")
     @Operation(
@@ -126,7 +154,7 @@ public class UsuarioController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Usuário não encontrado"
+                    description = "Usuário ou endereço não encontrado"
             )
     })
     public EntityModel<Usuario> atualizar(
@@ -141,10 +169,25 @@ public class UsuarioController {
         usuarioExistente.setEmail(usuario.getEmail());
         usuarioExistente.setTelefone(usuario.getTelefone());
 
+        if (usuario.getEndereco() != null) {
+
+            Endereco endereco = enderecoRepository
+                    .findById(usuario.getEndereco().getId())
+                    .orElseThrow(() ->
+                            new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND,
+                                    "Endereço não encontrado"
+                            )
+                    );
+
+            usuarioExistente.setEndereco(endereco);
+        }
+
         Usuario usuarioAtualizado = repository.save(usuarioExistente);
 
         return assembler.toModel(usuarioAtualizado);
     }
+
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
