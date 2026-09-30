@@ -11,6 +11,8 @@ import com.biblioteca.repository.LivroRepository;
 import com.biblioteca.repository.UsuarioRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
@@ -18,7 +20,9 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+
 import org.springframework.hateoas.EntityModel;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,8 +53,15 @@ public class EmprestimoController {
     }
 
 
-    // GET /emprestimos
-    @Operation(summary = "Listar empréstimos")
+    // LISTAR EMPRÉSTIMOS
+    @Operation(
+            summary = "Listar empréstimos",
+            description = "Retorna os empréstimos cadastrados de forma paginada."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Empréstimos listados com sucesso"
+    )
     @GetMapping
     public Page<EntityModel<Emprestimo>> listar(
             @RequestParam(defaultValue = "0") int page,
@@ -64,12 +75,44 @@ public class EmprestimoController {
     }
 
 
-    // GET /emprestimos/1
-    @Operation(summary = "Buscar empréstimo por ID")
-    @GetMapping("/{id}")
-    public EntityModel<Emprestimo> buscarPorId(@PathVariable Long id) {
+    // CONSULTA PERSONALIZADA - BUSCAR POR STATUS
+    @Operation(
+            summary = "Buscar empréstimos por status",
+            description = "Busca empréstimos pelo status informado: ATIVO, DEVOLVIDO ou ATRASADO."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Busca realizada com sucesso"
+    )
+    @GetMapping("/buscar")
+    public Page<EntityModel<Emprestimo>> buscarPorStatus(
+            @Parameter(
+                    description = "Status do empréstimo: ATIVO, DEVOLVIDO ou ATRASADO"
+            )
+            @RequestParam StatusEmprestimo status,
 
-        Emprestimo emprestimo = emprestimoRepository.findById(id)
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "2") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        return emprestimoRepository
+                .findByStatus(status, pageable)
+                .map(assembler::toModel);
+    }
+
+
+    // BUSCAR EMPRÉSTIMO POR ID
+    @Operation(
+            summary = "Buscar empréstimo por ID",
+            description = "Retorna um empréstimo específico a partir do seu ID."
+    )
+    @GetMapping("/{id}")
+    public EntityModel<Emprestimo> buscarPorId(
+            @PathVariable Long id) {
+
+        Emprestimo emprestimo = emprestimoRepository
+                .findById(id)
                 .orElseThrow(() ->
                         new EmprestimoNotFoundException(id)
                 );
@@ -78,8 +121,11 @@ public class EmprestimoController {
     }
 
 
-    // POST /emprestimos
-    @Operation(summary = "Cadastrar empréstimo")
+    // CADASTRAR EMPRÉSTIMO
+    @Operation(
+            summary = "Cadastrar empréstimo",
+            description = "Cadastra um novo empréstimo relacionando um livro e um usuário."
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public EntityModel<Emprestimo> cadastrar(
@@ -113,14 +159,18 @@ public class EmprestimoController {
     }
 
 
-    // PUT /emprestimos/1
-    @Operation(summary = "Atualizar empréstimo")
+    // ATUALIZAR EMPRÉSTIMO
+    @Operation(
+            summary = "Atualizar empréstimo",
+            description = "Atualiza os dados de um empréstimo existente."
+    )
     @PutMapping("/{id}")
     public EntityModel<Emprestimo> atualizar(
             @PathVariable Long id,
             @Valid @RequestBody Emprestimo emprestimo) {
 
-        Emprestimo existente = emprestimoRepository.findById(id)
+        Emprestimo existente = emprestimoRepository
+                .findById(id)
                 .orElseThrow(() ->
                         new EmprestimoNotFoundException(id)
                 );
@@ -156,8 +206,11 @@ public class EmprestimoController {
     }
 
 
-    // DELETE /emprestimos/1
-    @Operation(summary = "Excluir empréstimo")
+    // EXCLUIR EMPRÉSTIMO
+    @Operation(
+            summary = "Excluir empréstimo",
+            description = "Exclui um empréstimo cadastrado a partir do seu ID."
+    )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {
@@ -170,12 +223,17 @@ public class EmprestimoController {
     }
 
 
-    // PATCH /emprestimos/1/devolver
-    @Operation(summary = "Registrar devolução do empréstimo")
+    // REGISTRAR DEVOLUÇÃO
+    @Operation(
+            summary = "Registrar devolução do empréstimo",
+            description = "Altera o status do empréstimo para DEVOLVIDO e registra a data atual como data de devolução."
+    )
     @PatchMapping("/{id}/devolver")
-    public EntityModel<Emprestimo> devolver(@PathVariable Long id) {
+    public EntityModel<Emprestimo> devolver(
+            @PathVariable Long id) {
 
-        Emprestimo emprestimo = emprestimoRepository.findById(id)
+        Emprestimo emprestimo = emprestimoRepository
+                .findById(id)
                 .orElseThrow(() ->
                         new EmprestimoNotFoundException(id)
                 );

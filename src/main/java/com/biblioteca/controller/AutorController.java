@@ -43,6 +43,8 @@ public class AutorController {
         this.assembler = assembler;
     }
 
+
+    // LISTAR AUTORES
     @GetMapping
     @Operation(
             summary = "Listar autores",
@@ -61,6 +63,33 @@ public class AutorController {
         return pagedAssembler.toModel(autores, assembler);
     }
 
+
+    // CONSULTA PERSONALIZADA - BUSCAR AUTORES POR NOME
+    @GetMapping("/buscar")
+    @Operation(
+            summary = "Buscar autores por nome",
+            description = "Busca autores que contenham o texto informado no nome, sem diferenciar letras maiúsculas e minúsculas."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Busca realizada com sucesso"
+    )
+    public PagedModel<EntityModel<Autor>> buscarPorNome(
+            @Parameter(description = "Nome ou parte do nome do autor")
+            @RequestParam String nome,
+
+            @ParameterObject Pageable pageable,
+
+            PagedResourcesAssembler<Autor> pagedAssembler) {
+
+        Page<Autor> autores =
+                repository.findByNomeContainingIgnoreCase(nome, pageable);
+
+        return pagedAssembler.toModel(autores, assembler);
+    }
+
+
+    // BUSCAR AUTOR POR ID
     @GetMapping("/{id}")
     @Operation(
             summary = "Buscar autor por ID",
@@ -86,6 +115,8 @@ public class AutorController {
         return assembler.toModel(autor);
     }
 
+
+    // CADASTRAR AUTOR
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -110,6 +141,8 @@ public class AutorController {
         return assembler.toModel(novoAutor);
     }
 
+
+    // ATUALIZAR AUTOR
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar autor",
@@ -132,6 +165,7 @@ public class AutorController {
     public EntityModel<Autor> atualizar(
             @Parameter(description = "ID do autor")
             @PathVariable Long id,
+
             @Valid @RequestBody Autor autor) {
 
         Autor autorExistente = repository.findById(id)
@@ -144,6 +178,8 @@ public class AutorController {
         return assembler.toModel(autorAtualizado);
     }
 
+
+    // EXCLUIR AUTOR
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(

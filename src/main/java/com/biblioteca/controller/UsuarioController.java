@@ -50,6 +50,7 @@ public class UsuarioController {
     }
 
 
+    // LISTAR USUÁRIOS
     @GetMapping
     @Operation(
             summary = "Listar usuários",
@@ -69,6 +70,32 @@ public class UsuarioController {
     }
 
 
+    // CONSULTA PERSONALIZADA - BUSCAR USUÁRIOS POR NOME
+    @GetMapping("/buscar")
+    @Operation(
+            summary = "Buscar usuários por nome",
+            description = "Busca usuários que contenham o texto informado no nome, sem diferenciar letras maiúsculas e minúsculas."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Busca realizada com sucesso"
+    )
+    public PagedModel<EntityModel<Usuario>> buscarPorNome(
+            @Parameter(description = "Nome ou parte do nome do usuário")
+            @RequestParam String nome,
+
+            @ParameterObject Pageable pageable,
+
+            PagedResourcesAssembler<Usuario> pagedAssembler) {
+
+        Page<Usuario> usuarios =
+                repository.findByNomeContainingIgnoreCase(nome, pageable);
+
+        return pagedAssembler.toModel(usuarios, assembler);
+    }
+
+
+    // BUSCAR USUÁRIO POR ID
     @GetMapping("/{id}")
     @Operation(
             summary = "Buscar usuário por ID",
@@ -95,6 +122,7 @@ public class UsuarioController {
     }
 
 
+    // CADASTRAR USUÁRIO
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -138,6 +166,7 @@ public class UsuarioController {
     }
 
 
+    // ATUALIZAR USUÁRIO
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar usuário",
@@ -189,6 +218,7 @@ public class UsuarioController {
     }
 
 
+    // EXCLUIR USUÁRIO
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(

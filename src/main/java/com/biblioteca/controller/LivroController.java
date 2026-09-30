@@ -53,6 +53,7 @@ public class LivroController {
     }
 
 
+    // LISTAR LIVROS
     @GetMapping
     @Operation(
             summary = "Listar livros",
@@ -72,6 +73,32 @@ public class LivroController {
     }
 
 
+    // BUSCAR LIVROS POR TÍTULO
+    @GetMapping("/buscar")
+    @Operation(
+            summary = "Buscar livros por título",
+            description = "Busca livros que contenham o texto informado no título, sem diferenciar letras maiúsculas e minúsculas."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Busca realizada com sucesso"
+    )
+    public PagedModel<EntityModel<Livro>> buscarPorTitulo(
+            @Parameter(description = "Título ou parte do título do livro")
+            @RequestParam String titulo,
+
+            @ParameterObject Pageable pageable,
+
+            PagedResourcesAssembler<Livro> pagedAssembler) {
+
+        Page<Livro> livros =
+                repository.findByTituloContainingIgnoreCase(titulo, pageable);
+
+        return pagedAssembler.toModel(livros, assembler);
+    }
+
+
+    // BUSCAR LIVRO POR ID
     @GetMapping("/{id}")
     @Operation(
             summary = "Buscar livro por ID",
@@ -98,6 +125,7 @@ public class LivroController {
     }
 
 
+    // CADASTRAR LIVRO
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -145,6 +173,7 @@ public class LivroController {
     }
 
 
+    // ATUALIZAR LIVRO
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar livro",
@@ -167,6 +196,7 @@ public class LivroController {
     public EntityModel<Livro> editar(
             @Parameter(description = "ID do livro")
             @PathVariable Long id,
+
             @Valid @RequestBody Livro livroNovo) {
 
         Livro livro = repository.findById(id)
@@ -199,6 +229,7 @@ public class LivroController {
     }
 
 
+    // EXCLUIR LIVRO
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(

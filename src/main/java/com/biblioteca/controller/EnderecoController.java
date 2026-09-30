@@ -6,6 +6,8 @@ import com.biblioteca.model.Endereco;
 import com.biblioteca.repository.EnderecoRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
@@ -13,7 +15,9 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+
 import org.springframework.hateoas.EntityModel;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,8 +40,16 @@ public class EnderecoController {
         this.assembler = assembler;
     }
 
-    // GET /enderecos
-    @Operation(summary = "Listar endereços")
+
+    // LISTAR ENDEREÇOS
+    @Operation(
+            summary = "Listar endereços",
+            description = "Retorna os endereços cadastrados de forma paginada."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Endereços listados com sucesso"
+    )
     @GetMapping
     public Page<EntityModel<Endereco>> listar(
             @RequestParam(defaultValue = "0") int page,
@@ -50,12 +62,43 @@ public class EnderecoController {
                 .map(assembler::toModel);
     }
 
-    // GET /enderecos/1
-    @Operation(summary = "Buscar endereço por ID")
-    @GetMapping("/{id}")
-    public EntityModel<Endereco> buscarPorId(@PathVariable Long id) {
 
-        Endereco endereco = enderecoRepository.findById(id)
+    // CONSULTA PERSONALIZADA - BUSCAR POR CIDADE
+    @Operation(
+            summary = "Buscar endereços por cidade",
+            description = "Busca endereços que contenham o texto informado no nome da cidade, sem diferenciar letras maiúsculas e minúsculas."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Busca realizada com sucesso"
+    )
+    @GetMapping("/buscar")
+    public Page<EntityModel<Endereco>> buscarPorCidade(
+            @Parameter(description = "Cidade ou parte do nome da cidade")
+            @RequestParam String cidade,
+
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "2") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        return enderecoRepository
+                .findByCidadeContainingIgnoreCase(cidade, pageable)
+                .map(assembler::toModel);
+    }
+
+
+    // BUSCAR ENDEREÇO POR ID
+    @Operation(
+            summary = "Buscar endereço por ID",
+            description = "Retorna um endereço específico a partir do seu ID."
+    )
+    @GetMapping("/{id}")
+    public EntityModel<Endereco> buscarPorId(
+            @PathVariable Long id) {
+
+        Endereco endereco = enderecoRepository
+                .findById(id)
                 .orElseThrow(() ->
                         new EnderecoNotFoundException(id)
                 );
@@ -63,26 +106,36 @@ public class EnderecoController {
         return assembler.toModel(endereco);
     }
 
-    // POST /enderecos
-    @Operation(summary = "Cadastrar endereço")
+
+    // CADASTRAR ENDEREÇO
+    @Operation(
+            summary = "Cadastrar endereço",
+            description = "Cadastra um novo endereço na biblioteca."
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public EntityModel<Endereco> cadastrar(
             @Valid @RequestBody Endereco endereco) {
 
-        Endereco novoEndereco = enderecoRepository.save(endereco);
+        Endereco novoEndereco =
+                enderecoRepository.save(endereco);
 
         return assembler.toModel(novoEndereco);
     }
 
-    // PUT /enderecos/1
-    @Operation(summary = "Atualizar endereço")
+
+    // ATUALIZAR ENDEREÇO
+    @Operation(
+            summary = "Atualizar endereço",
+            description = "Atualiza os dados de um endereço existente."
+    )
     @PutMapping("/{id}")
     public EntityModel<Endereco> atualizar(
             @PathVariable Long id,
             @Valid @RequestBody Endereco endereco) {
 
-        Endereco existente = enderecoRepository.findById(id)
+        Endereco existente = enderecoRepository
+                .findById(id)
                 .orElseThrow(() ->
                         new EnderecoNotFoundException(id)
                 );
@@ -100,8 +153,12 @@ public class EnderecoController {
         return assembler.toModel(enderecoAtualizado);
     }
 
-    // DELETE /enderecos/1
-    @Operation(summary = "Excluir endereço")
+
+    // EXCLUIR ENDEREÇO
+    @Operation(
+            summary = "Excluir endereço",
+            description = "Exclui um endereço cadastrado a partir do seu ID."
+    )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void excluir(@PathVariable Long id) {
