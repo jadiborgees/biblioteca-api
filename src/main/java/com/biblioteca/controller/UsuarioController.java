@@ -315,6 +315,11 @@ public class UsuarioController {
                         new UsuarioNotFoundException(id)
                 );
 
+        // Desvincula o endereço antes de excluir o usuário
+        usuario.setEndereco(null);
+        repository.save(usuario);
+
+        // Exclui o usuário
         repository.delete(usuario);
     }
 }
