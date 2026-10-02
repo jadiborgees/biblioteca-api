@@ -3,10 +3,12 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.EmprestimoModelAssembler;
 import com.biblioteca.exception.EmprestimoNotFoundException;
 import com.biblioteca.model.Emprestimo;
+import com.biblioteca.model.IdempotencyKey;
 import com.biblioteca.model.Livro;
 import com.biblioteca.model.StatusEmprestimo;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.EmprestimoRepository;
+import com.biblioteca.repository.IdempotencyKeyRepository;
 import com.biblioteca.repository.LivroRepository;
 import com.biblioteca.repository.UsuarioRepository;
 
@@ -28,6 +30,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,17 +46,20 @@ public class EmprestimoController {
     private final LivroRepository livroRepository;
     private final UsuarioRepository usuarioRepository;
     private final EmprestimoModelAssembler assembler;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     public EmprestimoController(
             EmprestimoRepository emprestimoRepository,
             LivroRepository livroRepository,
             UsuarioRepository usuarioRepository,
-            EmprestimoModelAssembler assembler) {
+            EmprestimoModelAssembler assembler,
+            IdempotencyKeyRepository idempotencyKeyRepository) {
 
         this.emprestimoRepository = emprestimoRepository;
         this.livroRepository = livroRepository;
         this.usuarioRepository = usuarioRepository;
         this.assembler = assembler;
+        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
 
@@ -173,12 +179,11 @@ public class EmprestimoController {
     }
 
 
-    // CADASTRAR EMPRÉSTIMO
+    // CADASTRAR EMPRÉSTIMO COM IDEMPOTÊNCIA
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Cadastrar empréstimo",
-            description = "Cadastra um novo empréstimo relacionando um livro e um usuário previamente cadastrados."
+            description = "Cadastra um novo empréstimo relacionando um livro e um usuário previamente cadastrados. Utiliza X-Idempotency-Key para impedir o processamento duplicado da mesma operação."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do empréstimo que será cadastrado",
@@ -188,7 +193,7 @@ public class EmprestimoController {
                     examples = @ExampleObject(
                             value = """
                                     {
-                                      "dataEmprestimo": "2026-09-30",
+                                      "dataEmprestimo": "2026-10-01",
                                       "dataDevolucao": null,
                                       "status": "ATIVO",
                                       "livro": {
@@ -208,6 +213,10 @@ public class EmprestimoController {
                     description = "Empréstimo cadastrado com sucesso"
             ),
             @ApiResponse(
+                    responseCode = "200",
+                    description = "Requisição já processada anteriormente. O empréstimo existente foi retornado"
+            ),
+            @ApiResponse(
                     responseCode = "400",
                     description = "Dados do empréstimo inválidos"
             ),
@@ -216,9 +225,43 @@ public class EmprestimoController {
                     description = "Livro ou usuário não encontrado"
             )
     })
-    public EntityModel<Emprestimo> cadastrar(
+    public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
+
+            @Parameter(
+                    description = "Chave única utilizada para impedir o processamento duplicado da requisição",
+                    example = "emprestimo-001",
+                    required = true
+            )
+            @RequestHeader("X-Idempotency-Key") String idempotencyKey,
+
             @Valid @RequestBody Emprestimo emprestimo) {
 
+        // Prefixo para separar as chaves das outras entidades.
+        String chaveInterna = "emprestimo:" + idempotencyKey;
+
+        // Verifica se essa operação já foi processada.
+        if (idempotencyKeyRepository.existsById(chaveInterna)) {
+
+            IdempotencyKey chaveExistente =
+                    idempotencyKeyRepository.findById(chaveInterna)
+                            .orElseThrow();
+
+            Long emprestimoId =
+                    Long.valueOf(chaveExistente.getRecursoId());
+
+            Emprestimo emprestimoExistente =
+                    emprestimoRepository.findById(emprestimoId)
+                            .orElseThrow(() ->
+                                    new EmprestimoNotFoundException(emprestimoId)
+                            );
+
+            // Já existia: retorna o mesmo empréstimo com 200 OK.
+            return ResponseEntity.ok(
+                    assembler.toModel(emprestimoExistente)
+            );
+        }
+
+        // Busca o livro informado.
         Livro livro = livroRepository
                 .findById(emprestimo.getLivro().getId())
                 .orElseThrow(() ->
@@ -228,6 +271,7 @@ public class EmprestimoController {
                         )
                 );
 
+        // Busca o usuário informado.
         Usuario usuario = usuarioRepository
                 .findById(emprestimo.getUsuario().getId())
                 .orElseThrow(() ->
@@ -240,10 +284,23 @@ public class EmprestimoController {
         emprestimo.setLivro(livro);
         emprestimo.setUsuario(usuario);
 
+        // Primeira requisição: cria o empréstimo.
         Emprestimo novoEmprestimo =
                 emprestimoRepository.save(emprestimo);
 
-        return assembler.toModel(novoEmprestimo);
+        // Registra a chave e o ID do empréstimo criado.
+        IdempotencyKey novaChave =
+                new IdempotencyKey(
+                        chaveInterna,
+                        novoEmprestimo.getId().toString()
+                );
+
+        idempotencyKeyRepository.save(novaChave);
+
+        // Novo recurso criado: 201 Created.
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(assembler.toModel(novoEmprestimo));
     }
 
 
@@ -261,7 +318,7 @@ public class EmprestimoController {
                     examples = @ExampleObject(
                             value = """
                                     {
-                                      "dataEmprestimo": "2026-09-30",
+                                      "dataEmprestimo": "2026-10-01",
                                       "dataDevolucao": "2026-10-07",
                                       "status": "DEVOLVIDO",
                                       "livro": {

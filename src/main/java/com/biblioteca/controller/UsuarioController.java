@@ -3,8 +3,10 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.UsuarioModelAssembler;
 import com.biblioteca.exception.UsuarioNotFoundException;
 import com.biblioteca.model.Endereco;
+import com.biblioteca.model.IdempotencyKey;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.EnderecoRepository;
+import com.biblioteca.repository.IdempotencyKeyRepository;
 import com.biblioteca.repository.UsuarioRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -40,15 +43,18 @@ public class UsuarioController {
     private final UsuarioRepository repository;
     private final EnderecoRepository enderecoRepository;
     private final UsuarioModelAssembler assembler;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     public UsuarioController(
             UsuarioRepository repository,
             EnderecoRepository enderecoRepository,
-            UsuarioModelAssembler assembler) {
+            UsuarioModelAssembler assembler,
+            IdempotencyKeyRepository idempotencyKeyRepository) {
 
         this.repository = repository;
         this.enderecoRepository = enderecoRepository;
         this.assembler = assembler;
+        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
 
@@ -143,12 +149,11 @@ public class UsuarioController {
     }
 
 
-    // CADASTRAR USUÁRIO
+    // CADASTRAR USUÁRIO COM IDEMPOTÊNCIA
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Cadastrar usuário",
-            description = "Cadastra um novo usuário na biblioteca. Caso um endereço seja informado, ele deve estar previamente cadastrado."
+            description = "Cadastra um novo usuário utilizando o header X-Idempotency-Key para impedir que a mesma operação seja processada duas vezes. Caso um endereço seja informado, ele deve estar previamente cadastrado."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do usuário que será cadastrado",
@@ -175,6 +180,10 @@ public class UsuarioController {
                     description = "Usuário cadastrado com sucesso"
             ),
             @ApiResponse(
+                    responseCode = "200",
+                    description = "Requisição já processada anteriormente. O usuário existente foi retornado"
+            ),
+            @ApiResponse(
                     responseCode = "400",
                     description = "Dados do usuário inválidos"
             ),
@@ -183,9 +192,42 @@ public class UsuarioController {
                     description = "Endereço informado não encontrado"
             )
     })
-    public EntityModel<Usuario> cadastrar(
+    public ResponseEntity<EntityModel<Usuario>> cadastrar(
+
+            @Parameter(
+                    description = "Chave única utilizada para impedir o processamento duplicado da requisição",
+                    example = "usuario-001",
+                    required = true
+            )
+            @RequestHeader("X-Idempotency-Key") String idempotencyKey,
+
             @Valid @RequestBody Usuario usuario) {
 
+        // Prefixo evita conflito com chaves de outras entidades.
+        String chaveInterna = "usuario:" + idempotencyKey;
+
+        // Verifica se essa operação já foi processada.
+        if (idempotencyKeyRepository.existsById(chaveInterna)) {
+
+            IdempotencyKey chaveExistente =
+                    idempotencyKeyRepository.findById(chaveInterna)
+                            .orElseThrow();
+
+            Long usuarioId =
+                    Long.valueOf(chaveExistente.getRecursoId());
+
+            Usuario usuarioExistente = repository.findById(usuarioId)
+                    .orElseThrow(() ->
+                            new UsuarioNotFoundException(usuarioId)
+                    );
+
+            // Já existia: retorna o mesmo usuário com 200 OK.
+            return ResponseEntity.ok(
+                    assembler.toModel(usuarioExistente)
+            );
+        }
+
+        // Se um endereço foi informado, busca o endereço existente.
         if (usuario.getEndereco() != null) {
 
             Endereco endereco = enderecoRepository
@@ -200,9 +242,22 @@ public class UsuarioController {
             usuario.setEndereco(endereco);
         }
 
+        // Primeira requisição: cadastra o usuário.
         Usuario novoUsuario = repository.save(usuario);
 
-        return assembler.toModel(novoUsuario);
+        // Registra a chave e o ID do usuário criado.
+        IdempotencyKey novaChave =
+                new IdempotencyKey(
+                        chaveInterna,
+                        novoUsuario.getId().toString()
+                );
+
+        idempotencyKeyRepository.save(novaChave);
+
+        // Novo recurso criado: 201 Created.
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(assembler.toModel(novoUsuario));
     }
 
 
@@ -315,11 +370,11 @@ public class UsuarioController {
                         new UsuarioNotFoundException(id)
                 );
 
-        // Desvincula o endereço antes de excluir o usuário
+        // Desvincula o endereço antes de excluir o usuário.
         usuario.setEndereco(null);
         repository.save(usuario);
 
-        // Exclui o usuário
+        // Exclui o usuário.
         repository.delete(usuario);
     }
 }

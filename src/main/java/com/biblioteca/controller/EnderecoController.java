@@ -3,7 +3,9 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.EnderecoModelAssembler;
 import com.biblioteca.exception.EnderecoNotFoundException;
 import com.biblioteca.model.Endereco;
+import com.biblioteca.model.IdempotencyKey;
 import com.biblioteca.repository.EnderecoRepository;
+import com.biblioteca.repository.IdempotencyKeyRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,6 +25,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,13 +38,16 @@ public class EnderecoController {
 
     private final EnderecoRepository enderecoRepository;
     private final EnderecoModelAssembler assembler;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     public EnderecoController(
             EnderecoRepository enderecoRepository,
-            EnderecoModelAssembler assembler) {
+            EnderecoModelAssembler assembler,
+            IdempotencyKeyRepository idempotencyKeyRepository) {
 
         this.enderecoRepository = enderecoRepository;
         this.assembler = assembler;
+        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
 
@@ -121,7 +127,10 @@ public class EnderecoController {
         Pageable pageable = PageRequest.of(page, size);
 
         return pagedAssembler.toModel(
-                enderecoRepository.findByCidadeContainingIgnoreCase(cidade, pageable),
+                enderecoRepository.findByCidadeContainingIgnoreCase(
+                        cidade,
+                        pageable
+                ),
                 assembler
         );
     }
@@ -161,12 +170,11 @@ public class EnderecoController {
     }
 
 
-    // CADASTRAR ENDEREÇO
+    // CADASTRAR ENDEREÇO COM IDEMPOTÊNCIA
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Cadastrar endereço",
-            description = "Cadastra um novo endereço que poderá ser associado a um usuário da biblioteca."
+            description = "Cadastra um novo endereço utilizando o header X-Idempotency-Key para impedir que a mesma operação seja processada duas vezes."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do endereço que será cadastrado",
@@ -193,17 +201,67 @@ public class EnderecoController {
                     description = "Endereço cadastrado com sucesso"
             ),
             @ApiResponse(
+                    responseCode = "200",
+                    description = "Requisição já processada anteriormente. O endereço existente foi retornado"
+            ),
+            @ApiResponse(
                     responseCode = "400",
                     description = "Dados do endereço inválidos"
             )
     })
-    public EntityModel<Endereco> cadastrar(
+    public ResponseEntity<EntityModel<Endereco>> cadastrar(
+
+            @Parameter(
+                    description = "Chave única utilizada para impedir o processamento duplicado da requisição",
+                    example = "endereco-001",
+                    required = true
+            )
+            @RequestHeader("X-Idempotency-Key") String idempotencyKey,
+
             @Valid @RequestBody Endereco endereco) {
 
+        // Prefixo para separar as chaves das outras entidades.
+        String chaveInterna = "endereco:" + idempotencyKey;
+
+        // Verifica se a operação já foi processada.
+        if (idempotencyKeyRepository.existsById(chaveInterna)) {
+
+            IdempotencyKey chaveExistente =
+                    idempotencyKeyRepository.findById(chaveInterna)
+                            .orElseThrow();
+
+            Long enderecoId =
+                    Long.valueOf(chaveExistente.getRecursoId());
+
+            Endereco enderecoExistente = enderecoRepository
+                    .findById(enderecoId)
+                    .orElseThrow(() ->
+                            new EnderecoNotFoundException(enderecoId)
+                    );
+
+            // Já existia: retorna o mesmo endereço com 200 OK.
+            return ResponseEntity.ok(
+                    assembler.toModel(enderecoExistente)
+            );
+        }
+
+        // Primeira requisição: cadastra o endereço.
         Endereco novoEndereco =
                 enderecoRepository.save(endereco);
 
-        return assembler.toModel(novoEndereco);
+        // Registra a chave e o ID do endereço criado.
+        IdempotencyKey novaChave =
+                new IdempotencyKey(
+                        chaveInterna,
+                        novoEndereco.getId().toString()
+                );
+
+        idempotencyKeyRepository.save(novaChave);
+
+        // Novo recurso criado: 201 Created.
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(assembler.toModel(novoEndereco));
     }
 
 
