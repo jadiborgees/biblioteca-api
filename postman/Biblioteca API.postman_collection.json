@@ -11,7 +11,46 @@
       "name": "Listar Livros",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "b8fb9ee1-c192-4a82-a6e7-ecc19fbed0fa"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/livros?page=0&size=2",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "livros"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "2"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Testar Rate Limiting",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "ea8897d1-9d62-4364-a28e-17bfc3f2a518"
+          }
+        ],
         "url": {
           "raw": "http://localhost:8080/livros?page=0&size=2",
           "protocol": "http",
@@ -746,6 +785,103 @@
           "path": [
             "emprestimos",
             "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Gerar API Key",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api-keys",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api-keys"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Desativar API Key",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api-keys/1/desativar",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api-keys",
+            "1",
+            "desativar"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Testar CORS",
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "http://localhost:3000"
+          },
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "GET"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/livros",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "livros"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Testar Versionamento de Livros",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "be7f0545-b584-4a31-9f84-c4599f431afe"
+          },
+          {
+            "key": "X-API-Version",
+            "value": "2"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/livros/versao",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "livros",
+            "versao"
           ]
         }
       },

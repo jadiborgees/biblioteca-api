@@ -35,6 +35,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashSet;
 import java.util.Set;
 
+
 @RestController
 @RequestMapping("/livros")
 @Tag(
@@ -47,6 +48,7 @@ public class LivroController {
     private final AutorRepository autorRepository;
     private final LivroModelAssembler assembler;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
+
 
     public LivroController(
             LivroRepository repository,
@@ -85,7 +87,8 @@ public class LivroController {
     @GetMapping("/buscar")
     @Operation(
             summary = "Buscar livros por título",
-            description = "Busca livros que contenham o texto informado no título. A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
+            description = "Busca livros que contenham o texto informado no título. " +
+                    "A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
     )
     @ApiResponses({
             @ApiResponse(
@@ -156,7 +159,8 @@ public class LivroController {
     @PostMapping
     @Operation(
             summary = "Cadastrar livro",
-            description = "Cadastra um novo livro utilizando o header X-Idempotency-Key para impedir que a mesma operação seja processada duas vezes."
+            description = "Cadastra um novo livro utilizando o header X-Idempotency-Key " +
+                    "para impedir que a mesma operação seja processada duas vezes."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do livro que será cadastrado",
@@ -226,6 +230,7 @@ public class LivroController {
             );
         }
 
+
         Set<Autor> autores = new HashSet<>();
 
         for (Autor autorRecebido : livro.getAutores()) {
@@ -242,10 +247,13 @@ public class LivroController {
             autores.add(autor);
         }
 
+
         livro.setAutores(autores);
+
 
         // Primeira requisição: cria o livro.
         Livro novoLivro = repository.save(livro);
+
 
         // Guarda a chave e o ID do livro criado.
         IdempotencyKey novaChave =
@@ -255,6 +263,7 @@ public class LivroController {
                 );
 
         idempotencyKeyRepository.save(novaChave);
+
 
         // Um novo recurso foi criado: 201 Created.
         return ResponseEntity
@@ -315,6 +324,7 @@ public class LivroController {
                         new LivroNotFoundException(id)
                 );
 
+
         Set<Autor> autores = new HashSet<>();
 
         for (Autor autorRecebido : livroNovo.getAutores()) {
@@ -331,13 +341,16 @@ public class LivroController {
             autores.add(autor);
         }
 
+
         livro.setTitulo(livroNovo.getTitulo());
         livro.setIsbn(livroNovo.getIsbn());
         livro.setAnoPublicacao(livroNovo.getAnoPublicacao());
         livro.setAutores(autores);
 
+
         Livro livroAtualizado =
                 repository.save(livro);
+
 
         return assembler.toModel(livroAtualizado);
     }
@@ -374,5 +387,41 @@ public class LivroController {
                 );
 
         repository.delete(livro);
+    }
+
+
+    // VERSIONAMENTO DA API - VERSÃO 1
+    @GetMapping(value = "/versao", headers = "X-API-Version=1")
+    @Operation(
+            summary = "Consultar versão 1 da API de livros",
+            description = "Retorna a versão 1 do endpoint de livros utilizando o header X-API-Version."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Versão 1 retornada com sucesso"
+    )
+    public ResponseEntity<String> versao1() {
+
+        return ResponseEntity.ok(
+                "Biblioteca API - Livros - Versão 1"
+        );
+    }
+
+
+    // VERSIONAMENTO DA API - VERSÃO 2
+    @GetMapping(value = "/versao", headers = "X-API-Version=2")
+    @Operation(
+            summary = "Consultar versão 2 da API de livros",
+            description = "Retorna a versão 2 do endpoint de livros utilizando o header X-API-Version."
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Versão 2 retornada com sucesso"
+    )
+    public ResponseEntity<String> versao2() {
+
+        return ResponseEntity.ok(
+                "Biblioteca API - Livros - Versão 2"
+        );
     }
 }
