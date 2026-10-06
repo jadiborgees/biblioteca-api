@@ -33,7 +33,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashSet;
 import java.util.Set;
 
-
 @RestController
 @RequestMapping("/livros")
 @Tag(
@@ -46,7 +45,6 @@ public class LivroController {
     private final AutorRepository autorRepository;
     private final LivroModelAssembler assembler;
 
-
     public LivroController(
             LivroRepository repository,
             AutorRepository autorRepository,
@@ -56,7 +54,6 @@ public class LivroController {
         this.autorRepository = autorRepository;
         this.assembler = assembler;
     }
-
 
     // LISTAR LIVROS
     @GetMapping
@@ -77,7 +74,6 @@ public class LivroController {
         return pagedAssembler.toModel(livros, assembler);
     }
 
-
     // BUSCAR LIVROS POR TÍTULO
     @GetMapping("/buscar")
     @Operation(
@@ -96,7 +92,6 @@ public class LivroController {
             )
     })
     public PagedModel<EntityModel<Livro>> buscarPorTitulo(
-
             @Parameter(
                     description = "Título completo ou parte do título do livro",
                     example = "Dom"
@@ -116,7 +111,6 @@ public class LivroController {
         return pagedAssembler.toModel(livros, assembler);
     }
 
-
     // BUSCAR LIVRO POR ID
     @GetMapping("/{id}")
     @Operation(
@@ -134,7 +128,6 @@ public class LivroController {
             )
     })
     public EntityModel<Livro> buscar(
-
             @Parameter(
                     description = "ID do livro",
                     example = "1"
@@ -148,7 +141,6 @@ public class LivroController {
 
         return assembler.toModel(livro);
     }
-
 
     // CADASTRAR LIVRO
     @PostMapping
@@ -192,31 +184,28 @@ public class LivroController {
 
         Set<Autor> autores = new HashSet<>();
 
-        for (Autor autorRecebido : livro.getAutores()) {
-
-            Autor autor = autorRepository
-                    .findById(autorRecebido.getId())
-                    .orElseThrow(() ->
-                            new ResponseStatusException(
-                                    HttpStatus.NOT_FOUND,
-                                    "Autor não encontrado"
-                            )
-                    );
-
-            autores.add(autor);
+        if (livro.getAutores() != null) {
+            for (Autor autorRecebido : livro.getAutores()) {
+                Autor autor = autorRepository
+                        .findById(autorRecebido.getId())
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Autor não encontrado"
+                                )
+                        );
+                autores.add(autor);
+            }
         }
 
         livro.setAutores(autores);
 
-        // Cria o livro.
         Livro novoLivro = repository.save(livro);
 
-        // Um novo recurso foi criado: 201 Created.
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(assembler.toModel(novoLivro));
     }
-
 
     // ATUALIZAR LIVRO
     @PutMapping("/{id}")
@@ -256,7 +245,6 @@ public class LivroController {
             )
     })
     public EntityModel<Livro> editar(
-
             @Parameter(
                     description = "ID do livro que será atualizado",
                     example = "1"
@@ -272,18 +260,18 @@ public class LivroController {
 
         Set<Autor> autores = new HashSet<>();
 
-        for (Autor autorRecebido : livroNovo.getAutores()) {
-
-            Autor autor = autorRepository
-                    .findById(autorRecebido.getId())
-                    .orElseThrow(() ->
-                            new ResponseStatusException(
-                                    HttpStatus.NOT_FOUND,
-                                    "Autor não encontrado"
-                            )
-                    );
-
-            autores.add(autor);
+        if (livroNovo.getAutores() != null) {
+            for (Autor autorRecebido : livroNovo.getAutores()) {
+                Autor autor = autorRepository
+                        .findById(autorRecebido.getId())
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Autor não encontrado"
+                                )
+                        );
+                autores.add(autor);
+            }
         }
 
         livro.setTitulo(livroNovo.getTitulo());
@@ -291,12 +279,10 @@ public class LivroController {
         livro.setAnoPublicacao(livroNovo.getAnoPublicacao());
         livro.setAutores(autores);
 
-        Livro livroAtualizado =
-                repository.save(livro);
+        Livro livroAtualizado = repository.save(livro);
 
         return assembler.toModel(livroAtualizado);
     }
-
 
     // EXCLUIR LIVRO
     @DeleteMapping("/{id}")
@@ -316,7 +302,6 @@ public class LivroController {
             )
     })
     public void excluir(
-
             @Parameter(
                     description = "ID do livro que será excluído",
                     example = "1"
@@ -331,39 +316,17 @@ public class LivroController {
         repository.delete(livro);
     }
 
-
-    // VERSIONAMENTO DA API - VERSÃO 1
-    @GetMapping(value = "/versao", headers = "X-API-Version=1")
+    // VERSIONAMENTO DA API
+    @GetMapping("/versao")
     @Operation(
-            summary = "Consultar versão 1 da API de livros",
-            description = "Retorna a versão 1 do endpoint de livros utilizando o header X-API-Version."
+            summary = "Consultar versão da API de livros",
+            description = "Retorna a versão atual da API do módulo de livros."
     )
     @ApiResponse(
             responseCode = "200",
-            description = "Versão 1 retornada com sucesso"
+            description = "Versão retornada com sucesso"
     )
-    public ResponseEntity<String> versao1() {
-
-        return ResponseEntity.ok(
-                "Biblioteca API - Livros - Versão 1"
-        );
-    }
-
-
-    // VERSIONAMENTO DA API - VERSÃO 2
-    @GetMapping(value = "/versao", headers = "X-API-Version=2")
-    @Operation(
-            summary = "Consultar versão 2 da API de livros",
-            description = "Retorna a versão 2 do endpoint de livros utilizando o header X-API-Version."
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Versão 2 retornada com sucesso"
-    )
-    public ResponseEntity<String> versao2() {
-
-        return ResponseEntity.ok(
-                "Biblioteca API - Livros - Versão 2"
-        );
+    public ResponseEntity<String> versao() {
+        return ResponseEntity.ok("Biblioteca API - Livros - Versão 1.0");
     }
 }
