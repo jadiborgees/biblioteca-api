@@ -3,10 +3,8 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.LivroModelAssembler;
 import com.biblioteca.exception.LivroNotFoundException;
 import com.biblioteca.model.Autor;
-import com.biblioteca.model.IdempotencyKey;
 import com.biblioteca.model.Livro;
 import com.biblioteca.repository.AutorRepository;
-import com.biblioteca.repository.IdempotencyKeyRepository;
 import com.biblioteca.repository.LivroRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,19 +45,16 @@ public class LivroController {
     private final LivroRepository repository;
     private final AutorRepository autorRepository;
     private final LivroModelAssembler assembler;
-    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
 
     public LivroController(
             LivroRepository repository,
             AutorRepository autorRepository,
-            LivroModelAssembler assembler,
-            IdempotencyKeyRepository idempotencyKeyRepository) {
+            LivroModelAssembler assembler) {
 
         this.repository = repository;
         this.autorRepository = autorRepository;
         this.assembler = assembler;
-        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
 
@@ -155,12 +150,11 @@ public class LivroController {
     }
 
 
-    // CADASTRAR LIVRO COM IDEMPOTÊNCIA
+    // CADASTRAR LIVRO
     @PostMapping
     @Operation(
             summary = "Cadastrar livro",
-            description = "Cadastra um novo livro utilizando o header X-Idempotency-Key " +
-                    "para impedir que a mesma operação seja processada duas vezes."
+            description = "Cadastra um novo livro na base de dados."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do livro que será cadastrado",
@@ -185,10 +179,6 @@ public class LivroController {
                     description = "Livro cadastrado com sucesso"
             ),
             @ApiResponse(
-                    responseCode = "200",
-                    description = "Requisição já processada anteriormente. O livro existente foi retornado"
-            ),
-            @ApiResponse(
                     responseCode = "400",
                     description = "Dados do livro inválidos"
             ),
@@ -198,38 +188,7 @@ public class LivroController {
             )
     })
     public ResponseEntity<EntityModel<Livro>> cadastrar(
-
-            @Parameter(
-                    description = "Chave única utilizada para impedir o processamento duplicado da requisição",
-                    example = "livro-001",
-                    required = true
-            )
-            @RequestHeader("X-Idempotency-Key") String idempotencyKey,
-
             @Valid @RequestBody Livro livro) {
-
-        // Verifica se a chave já foi utilizada.
-        if (idempotencyKeyRepository.existsById(idempotencyKey)) {
-
-            IdempotencyKey chaveExistente =
-                    idempotencyKeyRepository.findById(idempotencyKey)
-                            .orElseThrow();
-
-            Long livroId =
-                    Long.valueOf(chaveExistente.getRecursoId());
-
-            Livro livroExistente = repository.findById(livroId)
-                    .orElseThrow(() ->
-                            new LivroNotFoundException(livroId)
-                    );
-
-            // A requisição já foi processada.
-            // Retorna o livro existente com 200 OK.
-            return ResponseEntity.ok(
-                    assembler.toModel(livroExistente)
-            );
-        }
-
 
         Set<Autor> autores = new HashSet<>();
 
@@ -247,23 +206,10 @@ public class LivroController {
             autores.add(autor);
         }
 
-
         livro.setAutores(autores);
 
-
-        // Primeira requisição: cria o livro.
+        // Cria o livro.
         Livro novoLivro = repository.save(livro);
-
-
-        // Guarda a chave e o ID do livro criado.
-        IdempotencyKey novaChave =
-                new IdempotencyKey(
-                        idempotencyKey,
-                        novoLivro.getId().toString()
-                );
-
-        idempotencyKeyRepository.save(novaChave);
-
 
         // Um novo recurso foi criado: 201 Created.
         return ResponseEntity
@@ -324,7 +270,6 @@ public class LivroController {
                         new LivroNotFoundException(id)
                 );
 
-
         Set<Autor> autores = new HashSet<>();
 
         for (Autor autorRecebido : livroNovo.getAutores()) {
@@ -341,16 +286,13 @@ public class LivroController {
             autores.add(autor);
         }
 
-
         livro.setTitulo(livroNovo.getTitulo());
         livro.setIsbn(livroNovo.getIsbn());
         livro.setAnoPublicacao(livroNovo.getAnoPublicacao());
         livro.setAutores(autores);
 
-
         Livro livroAtualizado =
                 repository.save(livro);
-
 
         return assembler.toModel(livroAtualizado);
     }

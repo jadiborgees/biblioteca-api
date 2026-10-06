@@ -11,46 +11,7 @@
       "name": "Listar Livros",
       "request": {
         "method": "GET",
-        "header": [
-          {
-            "key": "X-API-Key",
-            "value": "b8fb9ee1-c192-4a82-a6e7-ecc19fbed0fa"
-          }
-        ],
-        "url": {
-          "raw": "http://localhost:8080/livros?page=0&size=2",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "livros"
-          ],
-          "query": [
-            {
-              "key": "page",
-              "value": "0"
-            },
-            {
-              "key": "size",
-              "value": "2"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Testar Rate Limiting",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "X-API-Key",
-            "value": "ea8897d1-9d62-4364-a28e-17bfc3f2a518"
-          }
-        ],
+        "header": [],
         "url": {
           "raw": "http://localhost:8080/livros?page=0&size=2",
           "protocol": "http",
@@ -372,7 +333,25 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": ""
+          "raw": "http://localhost:8080/usuarios?page=0&size=2",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "usuarios"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "2"
+            }
+          ]
         }
       },
       "response": []
@@ -509,21 +488,12 @@
       "response": []
     },
     {
-      "name": "Cadastrar Endereço",
+      "name": "Listar Endereços",
       "request": {
-        "method": "POST",
+        "method": "GET",
         "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"rua\": \"Rua das Flores\",\r\n  \"numero\": \"120\",\r\n  \"bairro\": \"Centro\",\r\n  \"cidade\": \"São Paulo\",\r\n  \"estado\": \"SP\",\r\n  \"cep\": \"01001-000\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
         "url": {
-          "raw": "http://localhost:8080/enderecos",
+          "raw": "http://localhost:8080/enderecos?page=0&size=2",
           "protocol": "http",
           "host": [
             "localhost"
@@ -531,6 +501,16 @@
           "port": "8080",
           "path": [
             "enderecos"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "2"
+            }
           ]
         }
       },
@@ -562,7 +542,58 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": ""
+          "raw": "http://localhost:8080/enderecos/buscar?cidade=São Paulo&page=0&size=2",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "enderecos",
+            "buscar"
+          ],
+          "query": [
+            {
+              "key": "cidade",
+              "value": "São Paulo"
+            },
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "2"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Cadastrar Endereço",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"rua\": \"Rua das Flores\",\r\n  \"numero\": \"120\",\r\n  \"bairro\": \"Centro\",\r\n  \"cidade\": \"São Paulo\",\r\n  \"estado\": \"SP\",\r\n  \"cep\": \"01001-000\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/enderecos",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "enderecos"
+          ]
         }
       },
       "response": []
@@ -597,17 +628,6 @@
       "response": []
     },
     {
-      "name": "Listar Endereços",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": ""
-        }
-      },
-      "response": []
-    },
-    {
       "name": "Excluir Endereço",
       "request": {
         "method": "DELETE",
@@ -633,27 +653,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": ""
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Cadastrar Empréstimo",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"dataEmprestimo\": \"2026-10-01\",\r\n  \"dataDevolucao\": null,\r\n  \"status\": \"ATIVO\",\r\n  \"livro\": {\r\n    \"id\": 1\r\n  },\r\n  \"usuario\": {\r\n    \"id\": 1\r\n  }\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        },
-        "url": {
-          "raw": "http://localhost:8080/emprestimos",
+          "raw": "http://localhost:8080/emprestimos?page=0&size=2",
           "protocol": "http",
           "host": [
             "localhost"
@@ -661,6 +661,16 @@
           "port": "8080",
           "path": [
             "emprestimos"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            },
+            {
+              "key": "size",
+              "value": "2"
+            }
           ]
         }
       },
@@ -715,6 +725,34 @@
               "key": "size",
               "value": "2"
             }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Cadastrar Empréstimo",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"dataEmprestimo\": \"2026-10-01\",\r\n  \"dataDevolucao\": null,\r\n  \"status\": \"ATIVO\",\r\n  \"livro\": {\r\n    \"id\": 1\r\n  },\r\n  \"usuario\": {\r\n    \"id\": 1\r\n  }\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/emprestimos",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "emprestimos"
           ]
         }
       },
@@ -785,103 +823,6 @@
           "path": [
             "emprestimos",
             "1"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Gerar API Key",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:8080/api-keys",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api-keys"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Desativar API Key",
-      "request": {
-        "method": "PATCH",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:8080/api-keys/1/desativar",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api-keys",
-            "1",
-            "desativar"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Testar CORS",
-      "request": {
-        "method": "OPTIONS",
-        "header": [
-          {
-            "key": "Origin",
-            "value": "http://localhost:3000"
-          },
-          {
-            "key": "Access-Control-Request-Method",
-            "value": "GET"
-          }
-        ],
-        "url": {
-          "raw": "http://localhost:8080/livros",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "livros"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Testar Versionamento de Livros",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "X-API-Key",
-            "value": "be7f0545-b584-4a31-9f84-c4599f431afe"
-          },
-          {
-            "key": "X-API-Version",
-            "value": "2"
-          }
-        ],
-        "url": {
-          "raw": "http://localhost:8080/livros/versao",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "livros",
-            "versao"
           ]
         }
       },

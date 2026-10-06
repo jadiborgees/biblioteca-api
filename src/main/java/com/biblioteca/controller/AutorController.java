@@ -3,9 +3,7 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.AutorModelAssembler;
 import com.biblioteca.exception.AutorNotFoundException;
 import com.biblioteca.model.Autor;
-import com.biblioteca.model.IdempotencyKey;
 import com.biblioteca.repository.AutorRepository;
-import com.biblioteca.repository.IdempotencyKeyRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,16 +37,13 @@ public class AutorController {
 
     private final AutorRepository repository;
     private final AutorModelAssembler assembler;
-    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     public AutorController(
             AutorRepository repository,
-            AutorModelAssembler assembler,
-            IdempotencyKeyRepository idempotencyKeyRepository) {
+            AutorModelAssembler assembler) {
 
         this.repository = repository;
         this.assembler = assembler;
-        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
 
@@ -143,11 +138,11 @@ public class AutorController {
     }
 
 
-    // CADASTRAR AUTOR COM IDEMPOTÊNCIA
+    // CADASTRAR AUTOR
     @PostMapping
     @Operation(
             summary = "Cadastrar autor",
-            description = "Cadastra um novo autor utilizando o header X-Idempotency-Key para impedir que a mesma operação seja processada duas vezes."
+            description = "Cadastra um novo autor na base de dados."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do autor que será cadastrado",
@@ -169,60 +164,15 @@ public class AutorController {
                     description = "Autor cadastrado com sucesso"
             ),
             @ApiResponse(
-                    responseCode = "200",
-                    description = "Requisição já processada anteriormente. O autor existente foi retornado"
-            ),
-            @ApiResponse(
                     responseCode = "400",
                     description = "Dados do autor inválidos"
             )
     })
     public ResponseEntity<EntityModel<Autor>> cadastrar(
-
-            @Parameter(
-                    description = "Chave única utilizada para impedir o processamento duplicado da requisição",
-                    example = "autor-001",
-                    required = true
-            )
-            @RequestHeader("X-Idempotency-Key") String idempotencyKey,
-
             @Valid @RequestBody Autor autor) {
 
-        // Prefixo evita conflito com chaves utilizadas por outras entidades.
-        String chaveInterna = "autor:" + idempotencyKey;
-
-        // Verifica se essa operação já foi processada.
-        if (idempotencyKeyRepository.existsById(chaveInterna)) {
-
-            IdempotencyKey chaveExistente =
-                    idempotencyKeyRepository.findById(chaveInterna)
-                            .orElseThrow();
-
-            Long autorId =
-                    Long.valueOf(chaveExistente.getRecursoId());
-
-            Autor autorExistente = repository.findById(autorId)
-                    .orElseThrow(() ->
-                            new AutorNotFoundException(autorId)
-                    );
-
-            // Já existia: retorna o mesmo autor com 200 OK.
-            return ResponseEntity.ok(
-                    assembler.toModel(autorExistente)
-            );
-        }
-
-        // Primeira requisição: cadastra normalmente.
+        // Cadastra normalmente.
         Autor novoAutor = repository.save(autor);
-
-        // Registra a chave e o ID do autor criado.
-        IdempotencyKey novaChave =
-                new IdempotencyKey(
-                        chaveInterna,
-                        novoAutor.getId().toString()
-                );
-
-        idempotencyKeyRepository.save(novaChave);
 
         // Novo recurso criado: 201 Created.
         return ResponseEntity

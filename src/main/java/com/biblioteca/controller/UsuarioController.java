@@ -3,10 +3,8 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.UsuarioModelAssembler;
 import com.biblioteca.exception.UsuarioNotFoundException;
 import com.biblioteca.model.Endereco;
-import com.biblioteca.model.IdempotencyKey;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.EnderecoRepository;
-import com.biblioteca.repository.IdempotencyKeyRepository;
 import com.biblioteca.repository.UsuarioRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,18 +41,15 @@ public class UsuarioController {
     private final UsuarioRepository repository;
     private final EnderecoRepository enderecoRepository;
     private final UsuarioModelAssembler assembler;
-    private final IdempotencyKeyRepository idempotencyKeyRepository;
 
     public UsuarioController(
             UsuarioRepository repository,
             EnderecoRepository enderecoRepository,
-            UsuarioModelAssembler assembler,
-            IdempotencyKeyRepository idempotencyKeyRepository) {
+            UsuarioModelAssembler assembler) {
 
         this.repository = repository;
         this.enderecoRepository = enderecoRepository;
         this.assembler = assembler;
-        this.idempotencyKeyRepository = idempotencyKeyRepository;
     }
 
 
@@ -149,11 +144,11 @@ public class UsuarioController {
     }
 
 
-    // CADASTRAR USUÁRIO COM IDEMPOTÊNCIA
+    // CADASTRAR USUÁRIO
     @PostMapping
     @Operation(
             summary = "Cadastrar usuário",
-            description = "Cadastra um novo usuário utilizando o header X-Idempotency-Key para impedir que a mesma operação seja processada duas vezes. Caso um endereço seja informado, ele deve estar previamente cadastrado."
+            description = "Cadastra um novo usuário. Caso um endereço seja informado, ele deve estar previamente cadastrado."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do usuário que será cadastrado",
@@ -180,10 +175,6 @@ public class UsuarioController {
                     description = "Usuário cadastrado com sucesso"
             ),
             @ApiResponse(
-                    responseCode = "200",
-                    description = "Requisição já processada anteriormente. O usuário existente foi retornado"
-            ),
-            @ApiResponse(
                     responseCode = "400",
                     description = "Dados do usuário inválidos"
             ),
@@ -193,39 +184,7 @@ public class UsuarioController {
             )
     })
     public ResponseEntity<EntityModel<Usuario>> cadastrar(
-
-            @Parameter(
-                    description = "Chave única utilizada para impedir o processamento duplicado da requisição",
-                    example = "usuario-001",
-                    required = true
-            )
-            @RequestHeader("X-Idempotency-Key") String idempotencyKey,
-
             @Valid @RequestBody Usuario usuario) {
-
-        // Prefixo evita conflito com chaves de outras entidades.
-        String chaveInterna = "usuario:" + idempotencyKey;
-
-        // Verifica se essa operação já foi processada.
-        if (idempotencyKeyRepository.existsById(chaveInterna)) {
-
-            IdempotencyKey chaveExistente =
-                    idempotencyKeyRepository.findById(chaveInterna)
-                            .orElseThrow();
-
-            Long usuarioId =
-                    Long.valueOf(chaveExistente.getRecursoId());
-
-            Usuario usuarioExistente = repository.findById(usuarioId)
-                    .orElseThrow(() ->
-                            new UsuarioNotFoundException(usuarioId)
-                    );
-
-            // Já existia: retorna o mesmo usuário com 200 OK.
-            return ResponseEntity.ok(
-                    assembler.toModel(usuarioExistente)
-            );
-        }
 
         // Se um endereço foi informado, busca o endereço existente.
         if (usuario.getEndereco() != null) {
@@ -242,19 +201,10 @@ public class UsuarioController {
             usuario.setEndereco(endereco);
         }
 
-        // Primeira requisição: cadastra o usuário.
+        // Cadastra o usuário.
         Usuario novoUsuario = repository.save(usuario);
 
-        // Registra a chave e o ID do usuário criado.
-        IdempotencyKey novaChave =
-                new IdempotencyKey(
-                        chaveInterna,
-                        novoUsuario.getId().toString()
-                );
-
-        idempotencyKeyRepository.save(novaChave);
-
-        // Novo recurso criado: 201 Created.
+        // Retorna 201 Created com o modelo HATEOAS.
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(assembler.toModel(novoUsuario));
