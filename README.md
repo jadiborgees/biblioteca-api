@@ -34,7 +34,7 @@ A API permite:
 ## Tecnologias utilizadas
 
 - Java 21
-- Spring Boot 4.0.8
+- Spring Boot 3.x
 - Maven
 - Spring Web
 - Spring Data JPA
@@ -60,7 +60,7 @@ Os relacionamentos entre elas são:
 A entidade `Emprestimo` utiliza o enum `StatusEmprestimo`, que possui os valores:
 
 - `ATIVO`
-- `DEVOLVIDO`
+- `CONCLUIDO`
 - `ATRASADO`
 
 ---
