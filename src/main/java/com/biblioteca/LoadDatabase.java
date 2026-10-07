@@ -30,20 +30,22 @@ public class LoadDatabase {
             // 1. Autores
             Autor autor1 = new Autor();
             autor1.setNome("Machado de Assis");
+            autor1.setNacionalidade("Brasileira");
             autor1 = autorRepository.save(autor1);
 
             Autor autor2 = new Autor();
             autor2.setNome("Aluísio Azevedo");
+            autor2.setNacionalidade("Brasileira");
             autor2 = autorRepository.save(autor2);
 
-            // 2. Endereços
+            // 2. Endereços (CEP ajustado para exatamente 8 caracteres, sem hífen)
             Endereco end1 = new Endereco();
             end1.setRua("Rua das Flores");
             end1.setNumero("123");
             end1.setBairro("Centro");
             end1.setCidade("São Paulo");
             end1.setEstado("SP");
-            end1.setCep("01000-000");
+            end1.setCep("01000000");
             end1 = enderecoRepository.save(end1);
 
             // 3. Usuários
@@ -54,7 +56,7 @@ public class LoadDatabase {
             user1.setEndereco(end1);
             user1 = usuarioRepository.save(user1);
 
-            // 4. Livros (mantendo exatamente os seus livros e construtores)
+            // 4. Livros
             Livro livro1 = new Livro(
                     "Dom Casmurro",
                     "9788535910663",
@@ -82,6 +84,7 @@ public class LoadDatabase {
             // 5. Empréstimo
             Emprestimo emp1 = new Emprestimo();
             emp1.setDataEmprestimo(LocalDate.now().minusDays(3));
+            emp1.setDataDevolucao(LocalDate.now().plusDays(7));
             emp1.setStatus(StatusEmprestimo.ATIVO);
             emp1.setLivro(livro1);
             emp1.setUsuario(user1);

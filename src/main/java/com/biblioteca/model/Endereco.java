@@ -1,60 +1,47 @@
 package com.biblioteca.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name = "enderecos")
+@Table(name = "endereco")
 public class Endereco {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "A rua é obrigatória")
+    @NotBlank(message = "O campo rua não pode estar vazio")
+    @Size(min = 2, max = 150, message = "A rua deve ter entre 2 e 150 caracteres")
     private String rua;
 
-    @NotBlank(message = "O número é obrigatório")
+    @NotBlank(message = "O campo numero não pode estar vazio")
+    @Size(min = 1, max = 10, message = "O número deve ter entre 1 e 10 caracteres")
     private String numero;
 
-    @NotBlank(message = "O bairro é obrigatório")
+    @NotBlank(message = "O bairro não pode estar vazio")
+    @Size(min = 2, max = 100, message = "O bairro deve ter entre 2 e 100 caracteres")
     private String bairro;
 
-    @NotBlank(message = "A cidade é obrigatória")
+    @NotBlank(message = "A cidade não pode estar vazia")
+    @Size(min = 2, max = 100, message = "A cidade deve ter entre 2 e 100 caracteres")
     private String cidade;
 
-    @NotBlank(message = "O estado é obrigatório")
+    @NotBlank(message = "O estado não pode estar vazio")
+    @Size(min = 2, max = 2, message = "O estado deve ter exatamente 2 caracteres")
     private String estado;
 
-    @NotBlank(message = "O CEP é obrigatório")
+    @NotBlank(message = "O CEP não pode estar vazio")
+    @Size(min = 8, max = 8, message = "O CEP deve ter exatamente 8 caracteres")
     private String cep;
-
-    @OneToOne(mappedBy = "endereco")
-    @JsonIgnore
-    private Usuario usuario;
-
 
     public Endereco() {
     }
-
-
-    public Endereco(
-            String rua,
-            String numero,
-            String bairro,
-            String cidade,
-            String estado,
-            String cep) {
-
-        this.rua = rua;
-        this.numero = numero;
-        this.bairro = bairro;
-        this.cidade = cidade;
-        this.estado = estado;
-        this.cep = cep;
-    }
-
 
     public Long getId() {
         return id;
@@ -64,7 +51,6 @@ public class Endereco {
         this.id = id;
     }
 
-
     public String getRua() {
         return rua;
     }
@@ -72,7 +58,6 @@ public class Endereco {
     public void setRua(String rua) {
         this.rua = rua;
     }
-
 
     public String getNumero() {
         return numero;
@@ -82,7 +67,6 @@ public class Endereco {
         this.numero = numero;
     }
 
-
     public String getBairro() {
         return bairro;
     }
@@ -90,7 +74,6 @@ public class Endereco {
     public void setBairro(String bairro) {
         this.bairro = bairro;
     }
-
 
     public String getCidade() {
         return cidade;
@@ -100,7 +83,6 @@ public class Endereco {
         this.cidade = cidade;
     }
 
-
     public String getEstado() {
         return estado;
     }
@@ -109,21 +91,11 @@ public class Endereco {
         this.estado = estado;
     }
 
-
     public String getCep() {
         return cep;
     }
 
     public void setCep(String cep) {
         this.cep = cep;
-    }
-
-
-    public Usuario getUsuario() {
-        return usuario;
-    }
-
-    public void setUsuario(Usuario usuario) {
-        this.usuario = usuario;
     }
 }

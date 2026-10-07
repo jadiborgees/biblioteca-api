@@ -1,51 +1,38 @@
 package com.biblioteca.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-import java.util.List;
-
 @Entity
-@Table(name = "usuarios")
+@Table(name = "usuario")
 public class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "O nome é obrigatório")
-    @Size(min = 3, message = "O nome deve ter pelo menos 3 caracteres")
+    @NotBlank(message = "O nome do usuário não pode estar vazio")
+    @Size(min = 2, max = 150, message = "O nome deve ter entre 2 e 150 caracteres")
     private String nome;
 
-    @NotBlank(message = "O email é obrigatório")
-    @Email(message = "O email deve ser válido")
+    @NotBlank(message = "O email não pode estar vazio")
+    @Email(message = "O formato do email deve ser válido")
     private String email;
 
-    @NotBlank(message = "O telefone é obrigatório")
+    @NotBlank(message = "O telefone não pode estar vazio")
+    @Size(min = 10, max = 15, message = "O telefone deve ter entre 10 e 15 caracteres")
     private String telefone;
 
-    @OneToOne
+    @NotNull(message = "O endereço é obrigatório")
+    @ManyToOne
     @JoinColumn(name = "endereco_id")
     private Endereco endereco;
 
-    @OneToMany(mappedBy = "usuario")
-    @JsonIgnore
-    private List<Emprestimo> emprestimos;
-
-
     public Usuario() {
     }
-
-
-    public Usuario(String nome, String email, String telefone) {
-        this.nome = nome;
-        this.email = email;
-        this.telefone = telefone;
-    }
-
 
     public Long getId() {
         return id;
@@ -55,7 +42,6 @@ public class Usuario {
         this.id = id;
     }
 
-
     public String getNome() {
         return nome;
     }
@@ -63,7 +49,6 @@ public class Usuario {
     public void setNome(String nome) {
         this.nome = nome;
     }
-
 
     public String getEmail() {
         return email;
@@ -73,7 +58,6 @@ public class Usuario {
         this.email = email;
     }
 
-
     public String getTelefone() {
         return telefone;
     }
@@ -82,21 +66,11 @@ public class Usuario {
         this.telefone = telefone;
     }
 
-
     public Endereco getEndereco() {
         return endereco;
     }
 
     public void setEndereco(Endereco endereco) {
         this.endereco = endereco;
-    }
-
-
-    public List<Emprestimo> getEmprestimos() {
-        return emprestimos;
-    }
-
-    public void setEmprestimos(List<Emprestimo> emprestimos) {
-        this.emprestimos = emprestimos;
     }
 }

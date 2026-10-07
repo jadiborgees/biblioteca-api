@@ -1,34 +1,31 @@
 package com.biblioteca.model;
-// Pacote onde está a classe Livro.
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
+import jakarta.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.Set;
-// Imports necessários.
 
 @Entity
-// Define Livro como uma entidade do banco.
-
+@Table(name = "livro")
 public class Livro {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    // O banco cria o ID automaticamente.
     private Long id;
 
-    @NotBlank
-    // O título não pode ficar vazio.
+    @NotBlank(message = "O título do livro não pode estar vazio")
+    @Size(min = 1, max = 200, message = "O título deve ter entre 1 e 200 caracteres")
     private String titulo;
 
-    @NotBlank
-    // O ISBN não pode ficar vazio.
+    @NotBlank(message = "O ISBN não pode estar vazio")
+    @Size(min = 10, max = 13, message = "O ISBN deve ter entre 10 e 13 caracteres")
     private String isbn;
 
-    @NotNull
-    // O ano precisa ser informado.
+    @NotNull(message = "O ano de publicação é obrigatório")
+    @Min(value = 1000, message = "O ano de publicação deve ser válido")
     private Integer anoPublicacao;
 
     @ManyToMany
@@ -39,11 +36,8 @@ public class Livro {
     )
     private Set<Autor> autores = new HashSet<>();
 
-
     public Livro() {
     }
-    // Construtor vazio usado pelo JPA.
-
 
     public Livro(String titulo, String isbn, Integer anoPublicacao) {
         this.titulo = titulo;
@@ -51,11 +45,13 @@ public class Livro {
         this.anoPublicacao = anoPublicacao;
     }
 
-
     public Long getId() {
         return id;
     }
 
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getTitulo() {
         return titulo;
@@ -65,7 +61,6 @@ public class Livro {
         this.titulo = titulo;
     }
 
-
     public String getIsbn() {
         return isbn;
     }
@@ -74,7 +69,6 @@ public class Livro {
         this.isbn = isbn;
     }
 
-
     public Integer getAnoPublicacao() {
         return anoPublicacao;
     }
@@ -82,7 +76,6 @@ public class Livro {
     public void setAnoPublicacao(Integer anoPublicacao) {
         this.anoPublicacao = anoPublicacao;
     }
-
 
     public Set<Autor> getAutores() {
         return autores;

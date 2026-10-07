@@ -1,0 +1,32 @@
+/* Tema escuro para o Swagger UI */
+body {
+    background-color: #1a1a1a !important;
+    color: #e0e0e0 !important;
+}
+
+.swagger-ui .topbar {
+    background-color: #111111 !important;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.swagger-ui .info h1,
+.swagger-ui .info p,
+.swagger-ui .info table,
+.swagger-ui .opblock-tag,
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-description {
+    color: #e0e0e0 !important;
+}
+
+.swagger-ui .opblock {
+    background: #242424 !important;
+    border-color: #333333 !important;
+}
+
+.swagger-ui input,
+.swagger-ui textarea,
+.swagger-ui select {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+    border-color: #444444 !important;
+}
