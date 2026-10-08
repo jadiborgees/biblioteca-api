@@ -27,7 +27,7 @@ public class OpenApiConfig {
                 .url("https://opensource.org/licenses/MIT");
 
         String description = """
-                # Biblioteca API - Documentação Técnica e Guia de Utilização
+                # API de Biblioteca Direcionada - Documentação Técnica
 
                 API REST desenvolvida em Java e Spring Boot para o gerenciamento de um ecossistema de biblioteca comunitária. O sistema contempla o controle completo de acervo bibliográfico, autores, leitores, endereços e o ciclo de vida transacional de empréstimos.
 
@@ -39,18 +39,24 @@ public class OpenApiConfig {
                 - **Persistência e Banco de Dados:** Utiliza Spring Data JPA com banco de dados em memória H2 (`jdbc:h2:mem:biblioteca`). Os dados inseridos em tempo de execução são redefinidos ao encerrar a aplicação.
                 - **Nível de Maturidade REST (HATEOAS):** As respostas incluem hipermídia dinâmica (`_links`) para facilitar a navegação entre recursos relacionados:
                   - `self`: Acesso direto ao recurso consultado.
-                  - `atualizar`: Referência para modificação do registo.
-                  - `excluir`: Referência para remoção do registo.
+                  - `atualizar`: Referência para modificação do registro.
+                  - `excluir`: Referência para remoção do registro.
                   - `devolver`: Operação específica vinculada ao fluxo de empréstimos.
+
+                ---
+
+                ## Acesso à Consola H2 (Banco de Dados)
+
+                Aceda a `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:biblioteca`, Utilizador: `sa`, Senha vazia).
 
                 ---
 
                 ## Entidades e Relacionamentos
 
                 O modelo de domínio é composto por cinco entidades principais e um enumerador de controle:
-                - **Usuario e Endereco:** Relacionamento `One-to-One`.
+                - **Usuario e Endereco:** Relacionamento `One-to-One` com propagação de ciclo de vida (`Cascade`).
                 - **Usuario e Emprestimo:** Relacionamento `One-to-Many`.
-                - **Livro e Autor:** Relacionamento `Many-to-Many`.
+                - **Livro e Autor:** Relacionamento `Many-to-One` (vários livros associados a um autor).
                 - **Emprestimo e Livro:** Relacionamento `Many-to-One`.
                 - **StatusEmprestimo (Enum):** Valores aceitos (`ATIVO`, `CONCLUIDO`, `ATRASADO`).
 
@@ -76,6 +82,7 @@ public class OpenApiConfig {
                 | :--- | :--- |
                 | **200 OK** | Sucesso na recuperação, atualização ou execução de comandos. |
                 | **201 Created** | Recurso criado com sucesso após envio de POST válido. |
+                | **204 No Content** | Sucesso na execução (geralmente em DELETE), sem conteúdo de retorno no corpo. |
                 | **400 Bad Request** | Erro de validação de dados ou requisição mal formatada. |
                 | **404 Not Found** | O recurso solicitado não foi localizado na base de dados. |
                 | **409 Conflict** | Violação de regra de negócio ou restrição de integridade. |
@@ -85,7 +92,7 @@ public class OpenApiConfig {
 
                 ## Ordem Lógica de Operação e Teardown (Exclusão)
 
-                Para testes manuais que respeitem a integridade referencial e restrições de chave estrangeira, elimine os registos na ordem inversa da criação (LIFO):
+                Para testes manuais que respeitem a integridade referencial e restrições de chave estrangeira, elimine os registros na ordem inversa da criação (LIFO):
                 1. `DELETE /emprestimos/{id}`
                 2. `DELETE /livros/{id}`
                 3. `DELETE /autores/{id}`
@@ -118,8 +125,8 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Gestão de Biblioteca - Documentação Oficial")
-                        .version("1.0.0")
+                        .title("API de Biblioteca Direcionada")
+                        .version("v1.0")
                         .description(description)
                         .contact(contact)
                         .license(license))

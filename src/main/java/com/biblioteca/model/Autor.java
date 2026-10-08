@@ -1,5 +1,6 @@
 package com.biblioteca.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,6 +19,7 @@ public class Autor {
 
     @NotBlank(message = "O nome do autor não pode estar vazio")
     @Size(min = 2, max = 150, message = "O nome do autor deve ter entre 2 e 150 caracteres")
+    @Column(nullable = false, unique = true)
     private String nome;
 
     @NotBlank(message = "A nacionalidade não pode estar vazia")

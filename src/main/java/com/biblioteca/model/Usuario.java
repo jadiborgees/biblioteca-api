@@ -20,6 +20,7 @@ public class Usuario {
 
     @NotBlank(message = "O email não pode estar vazio")
     @Email(message = "O formato do email deve ser válido")
+    @Column(nullable = false, unique = true)
     private String email;
 
     @NotBlank(message = "O telefone não pode estar vazio")

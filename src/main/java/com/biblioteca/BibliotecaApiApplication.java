@@ -9,5 +9,4 @@ public class BibliotecaApiApplication {
     public static void main(String[] args) {
         SpringApplication.run(BibliotecaApiApplication.class, args);
     }
-
 }

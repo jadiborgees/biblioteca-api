@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         Map<String, String> erro = new HashMap<>();
         erro.put("erro", "Operação inválida: o registro já existe, o endereço informado já está vinculado a outro utilizador ou a entidade possui dependências associadas.");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
     // 2. Trata erros de validação dos campos do DTO/Entidade (@Valid, @NotBlank, etc.)
