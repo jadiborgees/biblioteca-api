@@ -18,6 +18,7 @@ import org.springdoc.core.annotations.ParameterObject;
 
 import jakarta.validation.Valid;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
@@ -350,6 +351,10 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Usuário não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Usuário em uso ou possui dependências associadas"
             )
     })
     public void excluir(
@@ -360,16 +365,18 @@ public class UsuarioController {
             )
             @PathVariable Long id) {
 
-        Usuario usuario = repository.findById(id)
-                .orElseThrow(() ->
-                        new UsuarioNotFoundException(id)
-                );
+        if (!repository.existsById(id)) {
+            throw new UsuarioNotFoundException(id);
+        }
 
-        // Desvincula o endereço antes de excluir o usuário.
-        usuario.setEndereco(null);
-        repository.save(usuario);
-
-        // Exclui o usuário.
-        repository.delete(usuario);
+        try {
+            repository.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Não foi possível concluir a operação pois o registro possui dependências vinculadas.",
+                    e
+            );
+        }
     }
 }

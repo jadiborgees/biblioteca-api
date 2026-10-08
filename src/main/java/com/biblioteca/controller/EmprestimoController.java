@@ -2,6 +2,8 @@ package com.biblioteca.controller;
 
 import com.biblioteca.assembler.EmprestimoModelAssembler;
 import com.biblioteca.exception.EmprestimoNotFoundException;
+import com.biblioteca.exception.LivroNotFoundException;
+import com.biblioteca.exception.UsuarioNotFoundException;
 import com.biblioteca.model.Emprestimo;
 import com.biblioteca.model.Livro;
 import com.biblioteca.model.StatusEmprestimo;
@@ -30,7 +32,8 @@ import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/emprestimos")
@@ -188,8 +191,8 @@ public class EmprestimoController {
                     examples = @ExampleObject(
                             value = """
                                     {
-                                      "dataEmprestimo": "2026-10-01",
-                                      "dataDevolucao": null,
+                                      "dataEmprestimo": "2026-09-01",
+                                      "dataDevolucao": "2026-09-15",
                                       "status": "ATIVO",
                                       "livro": {
                                         "id": 1
@@ -219,32 +222,26 @@ public class EmprestimoController {
     public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
             @Valid @RequestBody Emprestimo emprestimo) {
 
+        // Validação de coerência de datas
+        if (emprestimo.getDataDevolucao() != null && emprestimo.getDataDevolucao().isBefore(emprestimo.getDataEmprestimo())) {
+            throw new IllegalArgumentException("A data de devolução não pode ser anterior à data de empréstimo.");
+        }
+
         // Busca o livro informado.
         Livro livro = livroRepository
                 .findById(emprestimo.getLivro().getId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Livro não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new LivroNotFoundException(emprestimo.getLivro().getId()));
 
         // Busca o usuário informado.
         Usuario usuario = usuarioRepository
                 .findById(emprestimo.getUsuario().getId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Usuário não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new UsuarioNotFoundException(emprestimo.getUsuario().getId()));
 
         emprestimo.setLivro(livro);
         emprestimo.setUsuario(usuario);
 
         // Cria o empréstimo.
-        Emprestimo novoEmprestimo =
-                emprestimoRepository.save(emprestimo);
+        Emprestimo novoEmprestimo = emprestimoRepository.save(emprestimo);
 
         // Novo recurso criado: 201 Created.
         return ResponseEntity
@@ -311,23 +308,17 @@ public class EmprestimoController {
                         new EmprestimoNotFoundException(id)
                 );
 
+        if (emprestimo.getDataDevolucao() != null && emprestimo.getDataDevolucao().isBefore(emprestimo.getDataEmprestimo())) {
+            throw new IllegalArgumentException("A data de devolução não pode ser anterior à data de empréstimo.");
+        }
+
         Livro livro = livroRepository
                 .findById(emprestimo.getLivro().getId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Livro não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new LivroNotFoundException(emprestimo.getLivro().getId()));
 
         Usuario usuario = usuarioRepository
                 .findById(emprestimo.getUsuario().getId())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Usuário não encontrado"
-                        )
-                );
+                .orElseThrow(() -> new UsuarioNotFoundException(emprestimo.getUsuario().getId()));
 
         existente.setDataEmprestimo(emprestimo.getDataEmprestimo());
         existente.setDataDevolucao(emprestimo.getDataDevolucao());
@@ -335,8 +326,7 @@ public class EmprestimoController {
         existente.setLivro(livro);
         existente.setUsuario(usuario);
 
-        Emprestimo emprestimoAtualizado =
-                emprestimoRepository.save(existente);
+        Emprestimo emprestimoAtualizado = emprestimoRepository.save(existente);
 
         return assembler.toModel(emprestimoAtualizado);
     }
@@ -379,7 +369,7 @@ public class EmprestimoController {
     @PatchMapping("/{id}/devolver")
     @Operation(
             summary = "Registrar devolução do empréstimo",
-            description = "Altera o status do empréstimo para DEVOLVIDO e registra automaticamente a data atual como data de devolução."
+            description = "Registra a devolução. Se a data atual for posterior à data limite acordada, o status é alterado para ATRASADO; caso contrário, DEVOLVIDO."
     )
     @ApiResponses({
             @ApiResponse(
@@ -405,11 +395,20 @@ public class EmprestimoController {
                         new EmprestimoNotFoundException(id)
                 );
 
-        emprestimo.setStatus(StatusEmprestimo.DEVOLVIDO);
-        emprestimo.setDataDevolucao(java.time.LocalDate.now());
+        LocalDate hoje = LocalDate.now();
 
-        Emprestimo emprestimoDevolvido =
-                emprestimoRepository.save(emprestimo);
+        // Regra de negócio de atraso:
+        // Se houver data de devolução prevista e a data atual for posterior a ela -> ATRASADO
+        if (emprestimo.getDataDevolucao() != null && hoje.isAfter(emprestimo.getDataDevolucao())) {
+            emprestimo.setStatus(StatusEmprestimo.ATRASADO);
+        } else {
+            emprestimo.setStatus(StatusEmprestimo.DEVOLVIDO);
+        }
+
+        // Atualiza a data de devolução efetiva para a data atual
+        emprestimo.setDataDevolucao(hoje);
+
+        Emprestimo emprestimoDevolvido = emprestimoRepository.save(emprestimo);
 
         return assembler.toModel(emprestimoDevolvido);
     }
