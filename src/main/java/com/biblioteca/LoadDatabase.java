@@ -38,7 +38,7 @@ public class LoadDatabase {
             autor2.setNacionalidade("Brasileira");
             autor2 = autorRepository.save(autor2);
 
-            // 2. Endereços (CEP ajustado para exatamente 8 caracteres, sem hífen)
+            // 2. Endereços
             Endereco end1 = new Endereco();
             end1.setRua("Rua das Flores");
             end1.setNumero("123");
@@ -53,6 +53,7 @@ public class LoadDatabase {
             user1.setNome("Maria Silva");
             user1.setEmail("maria@email.com");
             user1.setTelefone("11988887777");
+            user1.setDataNascimento(LocalDate.of(1995, 5, 12));
             user1.setEndereco(end1);
             user1 = usuarioRepository.save(user1);
 
@@ -81,9 +82,9 @@ public class LoadDatabase {
             livro3.setAutores(Set.of(autor1));
             livro3 = livroRepository.save(livro3);
 
-            // 5. Empréstimo
+            // 5. Empréstimo (Ajustado para LocalDate.now() para respeitar @FutureOrPresent)
             Emprestimo emp1 = new Emprestimo();
-            emp1.setDataEmprestimo(LocalDate.now().minusDays(3));
+            emp1.setDataEmprestimo(LocalDate.now());
             emp1.setDataDevolucao(LocalDate.now().plusDays(7));
             emp1.setStatus(StatusEmprestimo.ATIVO);
             emp1.setLivro(livro1);

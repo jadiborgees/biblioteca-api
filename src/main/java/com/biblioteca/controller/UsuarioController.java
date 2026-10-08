@@ -30,6 +30,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/usuarios")
 @Tag(
@@ -148,7 +150,7 @@ public class UsuarioController {
     @PostMapping
     @Operation(
             summary = "Cadastrar usuário",
-            description = "Cadastra um novo usuário. Caso um endereço seja informado, ele deve estar previamente cadastrado."
+            description = "Cadastra um novo usuário. Valida se a idade está entre 18 e 120 anos. Caso um endereço seja informado, ele deve estar previamente cadastrado."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do usuário que será cadastrado",
@@ -161,6 +163,7 @@ public class UsuarioController {
                                       "nome": "Maria Silva",
                                       "email": "maria@email.com",
                                       "telefone": "11999999999",
+                                      "dataNascimento": "1995-05-12",
                                       "endereco": {
                                         "id": 1
                                       }
@@ -176,7 +179,7 @@ public class UsuarioController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Dados do usuário inválidos"
+                    description = "Dados do usuário inválidos ou idade fora do intervalo permitido (18 a 120 anos)"
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -185,6 +188,32 @@ public class UsuarioController {
     })
     public ResponseEntity<EntityModel<Usuario>> cadastrar(
             @Valid @RequestBody Usuario usuario) {
+
+        // Validação de idade: entre 18 e 120 anos
+        LocalDate hoje = LocalDate.now();
+        LocalDate minDataNascimento = hoje.minusYears(120); // Idade máxima: 120 anos
+        LocalDate maxDataNascimento = hoje.minusYears(18);  // Idade mínima: 18 anos
+
+        if (usuario.getDataNascimento() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A data de nascimento é obrigatória."
+            );
+        }
+
+        if (usuario.getDataNascimento().isBefore(minDataNascimento)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Data de nascimento inválida. A idade máxima permitida é de 120 anos."
+            );
+        }
+
+        if (usuario.getDataNascimento().isAfter(maxDataNascimento)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "O usuário deve ter pelo menos 18 anos para se cadastrar."
+            );
+        }
 
         // Se um endereço foi informado, busca o endereço existente.
         if (usuario.getEndereco() != null) {
@@ -215,7 +244,7 @@ public class UsuarioController {
     @PutMapping("/{id}")
     @Operation(
             summary = "Atualizar usuário",
-            description = "Atualiza nome, e-mail, telefone e endereço de um usuário existente."
+            description = "Atualiza nome, e-mail, telefone, data de nascimento e endereço de um usuário existente."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Novos dados do usuário",
@@ -228,6 +257,7 @@ public class UsuarioController {
                                       "nome": "Maria Silva",
                                       "email": "maria.silva@email.com",
                                       "telefone": "11988888888",
+                                      "dataNascimento": "1995-05-12",
                                       "endereco": {
                                         "id": 1
                                       }
@@ -243,7 +273,7 @@ public class UsuarioController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Dados do usuário inválidos"
+                    description = "Dados do usuário inválidos ou idade fora do intervalo permitido"
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -264,6 +294,21 @@ public class UsuarioController {
                 .orElseThrow(() ->
                         new UsuarioNotFoundException(id)
                 );
+
+        // Validação de idade na atualização também
+        LocalDate hoje = LocalDate.now();
+        LocalDate minDataNascimento = hoje.minusYears(120);
+        LocalDate maxDataNascimento = hoje.minusYears(18);
+
+        if (usuario.getDataNascimento() != null) {
+            if (usuario.getDataNascimento().isBefore(minDataNascimento) || usuario.getDataNascimento().isAfter(maxDataNascimento)) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "O usuário deve ter entre 18 e 120 anos."
+                );
+            }
+            usuarioExistente.setDataNascimento(usuario.getDataNascimento());
+        }
 
         usuarioExistente.setNome(usuario.getNome());
         usuarioExistente.setEmail(usuario.getEmail());

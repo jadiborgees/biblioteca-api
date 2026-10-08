@@ -27,9 +27,18 @@ public class OpenApiConfig {
                 .url("https://opensource.org/licenses/MIT");
 
         String description = """
-                # API de Biblioteca Direcionada - Documentação Técnica
-
+             
                 API REST desenvolvida em Java e Spring Boot para o gerenciamento de um ecossistema de biblioteca comunitária. O sistema contempla o controle completo de acervo bibliográfico, autores, leitores, endereços e o ciclo de vida transacional de empréstimos.
+
+                ---
+
+                ## Arquitetura em Camadas (Layered Architecture)
+
+                O projeto segue o padrão de arquitetura em camadas para garantir a separação de responsabilidades e a manutenibilidade do código:
+                - **Controller (Apresentação / Endpoints):** Controladores REST (`@RestController`) responsáveis por receber as requisições HTTP, aplicar validações iniciais e retornar os recursos enriquecidos com HATEOAS.
+                - **Service (Regras de Negócio):** Camada intermediária que concentra a lógica operacional, regras de transação e automações (como a verificação de prazos e alteração de status).
+                - **Repository (Persistência):** Interfaces baseadas em Spring Data JPA que realizam a comunicação direta e a gestão de dados com a base de dados.
+                - **Model / Entity (Domínio):** Classes que representam as tabelas, mapeamentos relacionais e restrições de integridade do sistema.
 
                 ---
 
@@ -42,6 +51,24 @@ public class OpenApiConfig {
                   - `atualizar`: Referência para modificação do registro.
                   - `excluir`: Referência para remoção do registro.
                   - `devolver`: Operação específica vinculada ao fluxo de empréstimos.
+
+                ---
+
+                ## Regras de Negócio e Automações
+
+                - **Validação de Prazos (`@PrePersist` / `@PreUpdate`):** O sistema valida automaticamente a data de devolução (`dataDevolucao`) no momento da criação ou atualização do empréstimo. Se a data atual exceder o prazo estipulado, o status é alterado de forma automática para `ATRASADO`, independentemente do valor enviado no payload.
+                - **Campos Obrigatórios:** O preenchimento da data de devolução é estritamente obrigatório (`@NotNull`), sob pena de retorno `400 Bad Request`.
+
+                ---
+
+                ## Ordem Lógica de Cadastro (Pré-requisitos e Dependências)
+
+                Devido às restrições de chave estrangeira (`Foreign Key`) e integridade referencial do banco de dados, os cadastros via `POST` devem seguir uma ordem lógica estrita (FIFO):
+                1. **Endereço (`POST /enderecos`)**: Deve ser criado primeiro, pois o usuário precisa de um ID de endereço válido.
+                2. **Usuário (`POST /usuarios`)**: Exige o ID de um endereço pré-existente.
+                3. **Autor (`POST /autores`)**: Deve ser criado antes dos livros associados.
+                4. **Livro (`POST /livros`)**: Exige o ID de um autor pré-existente.
+                5. **Empréstimo (`POST /emprestimos`)**: Exige IDs válidos de um usuário e de um livro já cadastrados.
 
                 ---
 
@@ -90,9 +117,9 @@ public class OpenApiConfig {
 
                 ---
 
-                ## Ordem Lógica de Operação e Teardown (Exclusão)
+                ## Ordem Lógica de Teardown (Exclusão / LIFO)
 
-                Para testes manuais que respeitem a integridade referencial e restrições de chave estrangeira, elimine os registros na ordem inversa da criação (LIFO):
+                Para testes manuais que respeitem as restrições de chave estrangeira ao apagar registos, elimine na ordem inversa da criação:
                 1. `DELETE /emprestimos/{id}`
                 2. `DELETE /livros/{id}`
                 3. `DELETE /autores/{id}`
@@ -125,7 +152,7 @@ public class OpenApiConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Biblioteca Direcionada")
+                        .title("Gestão para Biblioteca Comunitária API — Sistema Integrado de Empréstimos e Acervo")
                         .version("v1.0")
                         .description(description)
                         .contact(contact)
