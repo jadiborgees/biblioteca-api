@@ -53,10 +53,16 @@ public class AutorController {
             summary = "Listar autores",
             description = "Retorna todos os autores cadastrados de forma paginada."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Autores listados com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Autores listados com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
+            )
+    })
     public PagedModel<EntityModel<Autor>> listar(
             @ParameterObject Pageable pageable,
             PagedResourcesAssembler<Autor> pagedAssembler) {
@@ -81,6 +87,10 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Parâmetro de busca inválido"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public PagedModel<EntityModel<Autor>> buscarPorNome(
@@ -119,6 +129,10 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Autor não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Autor> buscarPorId(
@@ -166,6 +180,10 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Dados do autor inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public ResponseEntity<EntityModel<Autor>> cadastrar(
@@ -213,6 +231,10 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Autor não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Autor> atualizar(
@@ -254,6 +276,10 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Autor não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public void excluir(

@@ -52,10 +52,16 @@ public class EnderecoController {
             summary = "Listar endereços",
             description = "Retorna todos os endereços cadastrados de forma paginada."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Endereços listados com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Endereços listados com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
+            )
+    })
     public PagedModel<EntityModel<Endereco>> listar(
 
             @Parameter(
@@ -95,6 +101,10 @@ public class EnderecoController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Parâmetro de busca ou paginação inválido"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public PagedModel<EntityModel<Endereco>> buscarPorCidade(
@@ -145,6 +155,10 @@ public class EnderecoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Endereço não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Endereco> buscarPorId(
@@ -198,6 +212,10 @@ public class EnderecoController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Dados do endereço inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public ResponseEntity<EntityModel<Endereco>> cadastrar(
@@ -248,6 +266,10 @@ public class EnderecoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Endereço não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Endereco> atualizar(
@@ -295,6 +317,10 @@ public class EnderecoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Endereço não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public void excluir(

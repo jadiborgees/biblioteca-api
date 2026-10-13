@@ -61,10 +61,16 @@ public class LivroController {
             summary = "Listar livros",
             description = "Retorna todos os livros cadastrados de forma paginada."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Livros listados com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Livros listados com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
+            )
+    })
     public PagedModel<EntityModel<Livro>> listar(
             @ParameterObject Pageable pageable,
             PagedResourcesAssembler<Livro> pagedAssembler) {
@@ -89,6 +95,10 @@ public class LivroController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Parâmetro de busca inválido"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public PagedModel<EntityModel<Livro>> buscarPorTitulo(
@@ -125,6 +135,10 @@ public class LivroController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Livro não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Livro> buscar(
@@ -177,6 +191,10 @@ public class LivroController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Autor informado não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public ResponseEntity<EntityModel<Livro>> cadastrar(
@@ -242,6 +260,10 @@ public class LivroController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Livro ou autor não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Livro> editar(
@@ -299,6 +321,10 @@ public class LivroController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Livro não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public void excluir(
@@ -314,19 +340,5 @@ public class LivroController {
                 );
 
         repository.delete(livro);
-    }
-
-    // VERSIONAMENTO DA API
-    @GetMapping("/versao")
-    @Operation(
-            summary = "Consultar versão da API de livros",
-            description = "Retorna a versão atual da API do módulo de livros."
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Versão retornada com sucesso"
-    )
-    public ResponseEntity<String> versao() {
-        return ResponseEntity.ok("Biblioteca API - Livros - Versão 1.0");
     }
 }

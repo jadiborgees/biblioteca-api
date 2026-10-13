@@ -67,10 +67,16 @@ public class EmprestimoController {
             summary = "Listar empréstimos",
             description = "Retorna todos os empréstimos cadastrados de forma paginada."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Empréstimos listados com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Empréstimos listados com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
+            )
+    })
     public PagedModel<EntityModel<Emprestimo>> listar(
 
             @Parameter(
@@ -110,6 +116,10 @@ public class EmprestimoController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Status ou parâmetros de paginação inválidos"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public PagedModel<EntityModel<Emprestimo>> buscarPorStatus(
@@ -157,6 +167,10 @@ public class EmprestimoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Empréstimo não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Emprestimo> buscarPorId(
@@ -217,6 +231,10 @@ public class EmprestimoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Livro ou usuário não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
@@ -290,6 +308,10 @@ public class EmprestimoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Empréstimo, livro ou usuário não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Emprestimo> atualizar(
@@ -347,6 +369,10 @@ public class EmprestimoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Empréstimo não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public void excluir(
@@ -379,6 +405,10 @@ public class EmprestimoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Empréstimo não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Emprestimo> devolver(

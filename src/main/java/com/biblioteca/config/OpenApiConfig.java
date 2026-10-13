@@ -32,32 +32,27 @@ public class OpenApiConfig {
 
                 ---
 
-                ## Arquitetura em Camadas (Layered Architecture)
-
-                O projeto segue o padrão de arquitetura em camadas para garantir a separação de responsabilidades e a manutenibilidade do código:
-                - **Controller (Apresentação / Endpoints):** Controladores REST (`@RestController`) responsáveis por receber as requisições HTTP, aplicar validações iniciais e retornar os recursos enriquecidos com HATEOAS.
-                - **Service (Regras de Negócio):** Camada intermediária que concentra a lógica operacional, regras de transação e automações (como a verificação de prazos e alteração de status).
-                - **Repository (Persistência):** Interfaces baseadas em Spring Data JPA que realizam a comunicação direta e a gestão de dados com a base de dados.
-                - **Model / Entity (Domínio):** Classes que representam as tabelas, mapeamentos relacionais e restrições de integridade do sistema.
-
-                ---
-
                 ## Arquitetura e Padrões de Projeto
 
                 - **Formato de Dados:** Todas as requisições e respostas operam estritamente em `application/json` codificado em UTF-8.
+
                 - **Persistência e Banco de Dados:** Utiliza Spring Data JPA com banco de dados em memória H2 (`jdbc:h2:mem:biblioteca`). Os dados inseridos em tempo de execução são redefinidos ao encerrar a aplicação.
+
                 - **Nível de Maturidade REST (HATEOAS):** As respostas incluem hipermídia dinâmica (`_links`) para facilitar a navegação entre recursos relacionados:
-                  - `self`: Acesso direto ao recurso consultado.
-                  - `atualizar`: Referência para modificação do registro.
-                  - `excluir`: Referência para remoção do registro.
-                  - `devolver`: Operação específica vinculada ao fluxo de empréstimos.
+                - `self`: Acesso direto ao recurso consultado.
+                - `atualizar`: Referência para modificação do registro.
+                - `excluir`: Referência para remoção do registro.
+                - `devolver`: Operação específica vinculada ao fluxo de empréstimos.
+
 
                 ---
 
                 ## Regras de Negócio e Automações
 
                 - **Validação de Prazos (`@PrePersist` / `@PreUpdate`):** O sistema valida automaticamente a data de devolução (`dataDevolucao`) no momento da criação ou atualização do empréstimo. Se a data atual exceder o prazo estipulado, o status é alterado de forma automática para `ATRASADO`, independentemente do valor enviado no payload.
+
                 - **Campos Obrigatórios:** O preenchimento da data de devolução é estritamente obrigatório (`@NotNull`), sob pena de retorno `400 Bad Request`.
+
 
                 ---
 
@@ -71,12 +66,7 @@ public class OpenApiConfig {
                 5. **Empréstimo (`POST /emprestimos`)**: Exige IDs válidos de um usuário e de um livro já cadastrados.
 
                 ---
-
-                ## Acesso à Consola H2 (Banco de Dados)
-
-                Aceda a `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:biblioteca`, Utilizador: `sa`, Senha vazia).
-
-                ---
+                
 
                 ## Entidades e Relacionamentos
 
@@ -86,6 +76,7 @@ public class OpenApiConfig {
                 - **Livro e Autor:** Relacionamento `Many-to-One` (vários livros associados a um autor).
                 - **Emprestimo e Livro:** Relacionamento `Many-to-One`.
                 - **StatusEmprestimo (Enum):** Valores aceitos (`ATIVO`, `CONCLUIDO`, `ATRASADO`).
+
 
                 ---
 
@@ -98,12 +89,15 @@ public class OpenApiConfig {
                 - **Endereços:** Busca por cidade.
                 - **Empréstimos:** Busca por status.
 
+
                 ---
 
                 ## Validação de Dados e Tratamento de Erros
 
                 - **Bean Validation:** Validação declarativa rigorosa nos payloads de entrada (campos obrigatórios, formatação e restrições de tamanho). Dados inválidos retornam `400 Bad Request`.
+
                 - **Tratamento Global (`@RestControllerAdvice`):** Centralização de exceções para padronizar mensagens descritivas de erro.
+
 
                 | Código HTTP | Significado e Cenário de Aplicação |
                 | :--- | :--- |
@@ -125,17 +119,6 @@ public class OpenApiConfig {
                 3. `DELETE /autores/{id}`
                 4. `DELETE /usuarios/{id}`
                 5. `DELETE /enderecos/{id}`
-
-                ---
-
-                ## Estrutura de Pacotes da Aplicação
-
-                - `com.biblioteca.assembler` - Componentes de montagem e suporte HATEOAS.
-                - `com.biblioteca.config` - Configurações da API, segurança e documentação OpenAPI.
-                - `com.biblioteca.controller` - Controladores REST e mapeamento de rotas.
-                - `com.biblioteca.exception` - Tratamento global de exceções e erros customizados.
-                - `com.biblioteca.model` - Entidades de domínio e enumeradores.
-                - `com.biblioteca.repository` - Interfaces de persistência com Spring Data JPA.
                 """;
 
         List<Tag> tags = List.of(

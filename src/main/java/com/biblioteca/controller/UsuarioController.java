@@ -62,10 +62,16 @@ public class UsuarioController {
             summary = "Listar usuários",
             description = "Retorna todos os usuários cadastrados de forma paginada."
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Usuários listados com sucesso"
-    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Usuários listados com sucesso"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
+            )
+    })
     public PagedModel<EntityModel<Usuario>> listar(
             @ParameterObject Pageable pageable,
             PagedResourcesAssembler<Usuario> pagedAssembler) {
@@ -90,6 +96,10 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Parâmetro de busca inválido"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public PagedModel<EntityModel<Usuario>> buscarPorNome(
@@ -128,6 +138,10 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Usuário não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Usuario> buscarPorId(
@@ -185,6 +199,10 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Endereço informado não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public ResponseEntity<EntityModel<Usuario>> cadastrar(
@@ -279,6 +297,10 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Usuário ou endereço não encontrado"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public EntityModel<Usuario> atualizar(
@@ -355,6 +377,10 @@ public class UsuarioController {
             @ApiResponse(
                     responseCode = "409",
                     description = "Usuário em uso ou possui dependências associadas"
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Erro interno no servidor"
             )
     })
     public void excluir(
