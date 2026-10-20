@@ -1,39 +1,33 @@
 package com.biblioteca.model;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 @Entity
-@Table(name = "autor")
-@Schema(description = "Representação de um Autor registado na biblioteca")
+@Table(name = "tb_autor")
 public class Autor {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identificador único gerado automaticamente", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotBlank(message = "O nome do autor não pode estar vazio")
-    @Size(min = 2, max = 150, message = "O nome do autor deve ter entre 2 e 150 caracteres")
-    @Column(nullable = false, unique = true)
-    @Schema(description = "Nome completo do autor (deve ser único)", example = "Machado de Assis", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 150)
+    @NotBlank(message = "O nome é obrigatório")
+    @Size(min = 2, max = 100, message = "O nome deve ter entre 2 e 100 caracteres")
     private String nome;
 
-    @NotBlank(message = "A nacionalidade não pode estar vazia")
-    @Size(min = 2, max = 100, message = "A nacionalidade deve ter entre 2 e 100 caracteres")
-    @Schema(description = "País de origem ou nacionalidade do autor", example = "Brasileira", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 100)
     private String nacionalidade;
 
-    public Autor() {
+    // Construtores
+    public Autor() {}
+
+    public Autor(Long id, String nome, String nacionalidade) {
+        this.id = id;
+        this.nome = nome;
+        this.nacionalidade = nacionalidade;
     }
 
+    // Getters e Setters
     public Long getId() {
         return id;
     }

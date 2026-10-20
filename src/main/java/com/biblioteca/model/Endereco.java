@@ -1,55 +1,58 @@
 package com.biblioteca.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 @Entity
-@Table(name = "endereco")
-@Schema(description = "Representação do Endereço associado ao usuário")
+@Table(name = "tb_endereco")
 public class Endereco {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identificador único do endereço", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotBlank(message = "O campo rua não pode estar vazio")
-    @Size(min = 2, max = 150, message = "A rua deve ter entre 2 e 150 caracteres")
-    @Schema(description = "Nome da rua, avenida ou logradouro", example = "Avenida Paulista", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 150)
-    private String rua;
+    @NotBlank(message = "O logradouro é obrigatório")
+    @Schema(description = "Logradouro / Rua", example = "Rua das Flores")
+    private String logradouro;
 
-    @NotBlank(message = "O campo numero não pode estar vazio")
-    @Size(min = 1, max = 10, message = "O número deve ter entre 1 e 10 caracteres")
-    @Schema(description = "Número do imóvel", example = "1000", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 1, maxLength = 10)
+    @NotBlank(message = "O número é obrigatório")
+    @Schema(description = "Número da residência", example = "123")
     private String numero;
 
-    @NotBlank(message = "O bairro não pode estar vazio")
-    @Size(min = 2, max = 100, message = "O bairro deve ter entre 2 e 100 caracteres")
-    @Schema(description = "Bairro ou região", example = "Bela Vista", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 100)
+    @Schema(description = "Complemento", example = "Apto 101")
+    private String complemento;
+
+    @NotBlank(message = "O bairro é obrigatório")
+    @Schema(description = "Bairro", example = "Centro")
     private String bairro;
 
-    @NotBlank(message = "A cidade não pode estar vazia")
-    @Size(min = 2, max = 100, message = "A cidade deve ter entre 2 e 100 caracteres")
-    @Schema(description = "Cidade", example = "São Paulo", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 100)
+    @NotBlank(message = "A cidade é obrigatória")
+    @Schema(description = "Cidade", example = "São Paulo")
     private String cidade;
 
-    @NotBlank(message = "O estado não pode estar vazio")
-    @Size(min = 2, max = 2, message = "O estado deve ter exatamente 2 caracteres")
-    @Schema(description = "Sigla do estado (UF)", example = "SP", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 2)
+    @NotBlank(message = "O estado é obrigatório")
+    @Pattern(regexp = "^[A-Za-z]{2}$", message = "O estado (UF) deve conter exatamente 2 letras")
+    @Schema(description = "Estado (UF) com 2 letras", example = "SP")
     private String estado;
 
-    @NotBlank(message = "O CEP não pode estar vazio")
-    @Size(min = 8, max = 8, message = "O CEP deve ter exatamente 8 caracteres")
-    @Schema(description = "CEP contendo exatamente 8 dígitos (somente números)", example = "01310100", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 8, maxLength = 8)
+    @NotBlank(message = "O CEP é obrigatório")
+    @Pattern(regexp = "^\\d{5}-?\\d{3}$", message = "O CEP deve estar no formato 00000-000 ou 00000000")
+    @Schema(description = "CEP no formato 00000-000 ou 00000000", example = "01001-000")
     private String cep;
 
-    public Endereco() {
+    public Endereco() {}
+
+    public Endereco(Long id, String logradouro, String numero, String complemento, String bairro, String cidade, String estado, String cep) {
+        this.id = id;
+        this.logradouro = logradouro;
+        this.numero = numero;
+        this.complemento = complemento;
+        this.bairro = bairro;
+        this.cidade = cidade;
+        this.estado = estado;
+        this.cep = cep;
     }
 
     public Long getId() {
@@ -60,12 +63,12 @@ public class Endereco {
         this.id = id;
     }
 
-    public String getRua() {
-        return rua;
+    public String getLogradouro() {
+        return logradouro;
     }
 
-    public void setRua(String rua) {
-        this.rua = rua;
+    public void setLogradouro(String logradouro) {
+        this.logradouro = logradouro;
     }
 
     public String getNumero() {
@@ -74,6 +77,14 @@ public class Endereco {
 
     public void setNumero(String numero) {
         this.numero = numero;
+    }
+
+    public String getComplemento() {
+        return complemento;
+    }
+
+    public void setComplemento(String complemento) {
+        this.complemento = complemento;
     }
 
     public String getBairro() {

@@ -1,99 +1,63 @@
 package com.biblioteca.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import java.time.LocalDate;
+import java.time.Period;
 
 @Entity
-@Table(name = "usuario")
-@Schema(description = "Representação de um Usuário registado na biblioteca")
+@Table(name = "tb_usuario")
 public class Usuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identificador único do usuário", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotBlank(message = "O nome do usuário não pode estar vazio")
-    @Size(min = 2, max = 150, message = "O nome deve ter entre 2 e 150 caracteres")
-    @Schema(description = "Nome completo do usuário", example = "Ana Silva", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 150)
+    @NotBlank(message = "O nome é obrigatório")
+    @Size(max = 100, message = "O nome deve ter no máximo 100 caracteres")
+    @Schema(description = "Nome completo do usuário", example = "João Silva")
     private String nome;
 
-    @NotBlank(message = "O email não pode estar vazio")
-    @Email(message = "O formato do email deve ser válido")
-    @Column(nullable = false, unique = true)
-    @Schema(description = "Endereço de email único do usuário", example = "ana.silva@email.com", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotBlank(message = "O e-mail é obrigatório")
+    @Email(message = "E-mail inválido")
+    @Column(unique = true, nullable = false)
+    @Schema(description = "E-mail do usuário (deve ser único)", example = "joao@email.com")
     private String email;
 
-    @NotBlank(message = "O telefone não pode estar vazio")
-    @Size(min = 10, max = 15, message = "O telefone deve ter entre 10 e 15 caracteres")
-    @Schema(description = "Número de telefone ou telemóvel com DDD", example = "11988887777", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 10, maxLength = 15)
+    @NotBlank(message = "O telefone é obrigatório")
+    @Schema(description = "Telefone de contato", example = "11999999999")
     private String telefone;
 
     @NotNull(message = "A data de nascimento é obrigatória")
-    @Past(message = "A data de nascimento deve ser no passado")
-    @Schema(description = "Data de nascimento do usuário (deve ter entre 18 e 120 anos)", example = "1995-05-12", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Data de nascimento (mínimo 18 e máximo 120 anos)", example = "1995-05-12")
     private LocalDate dataNascimento;
 
-    @NotNull(message = "O endereço é obrigatório")
-    @ManyToOne
-    @JoinColumn(name = "endereco_id")
-    @Schema(description = "Endereço residencial associado ao usuário", requiredMode = Schema.RequiredMode.REQUIRED)
+    @OneToOne
+    @JoinColumn(name = "endereco_id", referencedColumnName = "id")
     private Endereco endereco;
 
-    public Usuario() {
+    public Usuario() {}
+
+    @JsonIgnore
+    @AssertTrue(message = "O usuário deve ter entre 18 e 120 anos")
+    public boolean isIdadeValida() {
+        if (dataNascimento == null) return true;
+        int idade = Period.between(dataNascimento, LocalDate.now()).getYears();
+        return idade >= 18 && idade <= 120;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getTelefone() {
-        return telefone;
-    }
-
-    public void setTelefone(String telefone) {
-        this.telefone = telefone;
-    }
-
-    public LocalDate getDataNascimento() {
-        return dataNascimento;
-    }
-
-    public void setDataNascimento(LocalDate dataNascimento) {
-        this.dataNascimento = dataNascimento;
-    }
-
-    public Endereco getEndereco() {
-        return endereco;
-    }
-
-    public void setEndereco(Endereco endereco) {
-        this.endereco = endereco;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getTelefone() { return telefone; }
+    public void setTelefone(String telefone) { this.telefone = telefone; }
+    public LocalDate getDataNascimento() { return dataNascimento; }
+    public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
+    public Endereco getEndereco() { return endereco; }
+    public void setEndereco(Endereco endereco) { this.endereco = endereco; }
 }

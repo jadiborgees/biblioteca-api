@@ -1,408 +1,257 @@
 package com.biblioteca.controller;
 
 import com.biblioteca.assembler.UsuarioModelAssembler;
-import com.biblioteca.exception.UsuarioNotFoundException;
+import com.biblioteca.exception.*;
 import com.biblioteca.model.Endereco;
 import com.biblioteca.model.Usuario;
 import com.biblioteca.repository.EnderecoRepository;
 import com.biblioteca.repository.UsuarioRepository;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springdoc.core.annotations.ParameterObject;
-
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
-
-import org.springframework.dao.DataIntegrityViolationException;
+import jakarta.validation.Validator;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
-
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/usuarios")
-@Tag(
-        name = "Usuários",
-        description = "Endpoints para cadastro, consulta, atualização e exclusão dos usuários da biblioteca"
-)
+@Tag(name = "Usuários", description = "Contas de leitores vinculadas a endereços cadastrados")
 public class UsuarioController {
 
-    private final UsuarioRepository repository;
-    private final EnderecoRepository enderecoRepository;
-    private final UsuarioModelAssembler assembler;
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
-    public UsuarioController(
-            UsuarioRepository repository,
-            EnderecoRepository enderecoRepository,
-            UsuarioModelAssembler assembler) {
+    @Autowired
+    private EnderecoRepository enderecoRepository;
 
-        this.repository = repository;
-        this.enderecoRepository = enderecoRepository;
-        this.assembler = assembler;
-    }
+    @Autowired
+    private UsuarioModelAssembler assembler;
 
+    @Autowired
+    private Validator validator;
 
-    // LISTAR USUÁRIOS
     @GetMapping
-    @Operation(
-            summary = "Listar usuários",
-            description = "Retorna todos os usuários cadastrados de forma paginada."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Usuários listados com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Listar usuários", description = "Recupera uma lista paginada de todos os usuários cadastrados.", operationId = "listarUsuarios")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de usuários recuperada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
-    public PagedModel<EntityModel<Usuario>> listar(
+    public ResponseEntity<PagedModel<EntityModel<Usuario>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Usuario> pagedAssembler) {
+            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
-        Page<Usuario> usuarios = repository.findAll(pageable);
-
-        return pagedAssembler.toModel(usuarios, assembler);
+        Page<Usuario> page = usuarioRepository.findAll(pageable);
+        PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
     }
 
-
-    // BUSCAR USUÁRIOS POR NOME
     @GetMapping("/buscar")
-    @Operation(
-            summary = "Buscar usuários por nome",
-            description = "Busca usuários que contenham o texto informado no nome. A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Busca realizada com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Parâmetro de busca inválido"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Buscar usuários por nome", description = "Consulta personalizada que filtra usuários pelo nome (busca parcial e case-insensitive).", operationId = "buscarUsuariosPorNome")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
-    public PagedModel<EntityModel<Usuario>> buscarPorNome(
-
-            @Parameter(
-                    description = "Nome completo ou parte do nome do usuário",
-                    example = "Maria"
-            )
+    public ResponseEntity<PagedModel<EntityModel<Usuario>>> buscarPorNome(
+            @Parameter(description = "Nome do usuário para filtragem parcial", required = true, example = "João")
             @RequestParam String nome,
-
             @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
-            PagedResourcesAssembler<Usuario> pagedAssembler) {
-
-        Page<Usuario> usuarios =
-                repository.findByNomeContainingIgnoreCase(
-                        nome,
-                        pageable
-                );
-
-        return pagedAssembler.toModel(usuarios, assembler);
+        Page<Usuario> page = usuarioRepository.findByNomeContainingIgnoreCase(nome, pageable);
+        PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
     }
 
-
-    // BUSCAR USUÁRIO POR ID
     @GetMapping("/{id}")
-    @Operation(
-            summary = "Buscar usuário por ID",
-            description = "Retorna os dados de um usuário específico a partir do seu identificador."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Usuário encontrado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Usuário não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Buscar usuário por ID", description = "Retorna os detalhes de um usuário específico.", operationId = "buscarUsuarioPorId")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Usuário encontrado com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Usuário não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
+                                      "status": 404,
+                                      "erro": "Não Encontrado",
+                                      "mensagem": "Usuário não encontrado com o ID: 99",
+                                      "caminho": "/usuarios/99"
+                                    }
+                                    """)))
     })
     public EntityModel<Usuario> buscarPorId(
-
-            @Parameter(
-                    description = "ID do usuário",
-                    example = "1"
-            )
+            @Parameter(description = "Identificador único do usuário", example = "1")
             @PathVariable Long id) {
-
-        Usuario usuario = repository.findById(id)
-                .orElseThrow(() ->
-                        new UsuarioNotFoundException(id)
-                );
-
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new UsuarioNotFoundException(id));
         return assembler.toModel(usuario);
     }
 
-
-    // CADASTRAR USUÁRIO
     @PostMapping
-    @Operation(
-            summary = "Cadastrar usuário",
-            description = "Cadastra um novo usuário. Valida se a idade está entre 18 e 120 anos. Caso um endereço seja informado, ele deve estar previamente cadastrado."
-    )
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "Dados do usuário que será cadastrado",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    examples = @ExampleObject(
-                            value = """
+    @Operation(summary = "Cadastrar novo usuário", description = "Registra um novo usuário. Aceita endereço embutido ou referência por ID.", operationId = "cadastrarUsuario")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Usuário cadastrado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou idade fora do intervalo de 18 a 120 anos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
+                            examples = @ExampleObject(value = """
                                     {
-                                      "nome": "Maria Silva",
-                                      "email": "maria@email.com",
+                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
+                                      "status": 400,
+                                      "erro": "Erro de Validação",
+                                      "mensagem": "Um ou mais campos preenchidos são inválidos.",
+                                      "caminho": "/usuarios",
+                                      "campos": {
+                                        "idadeValida": "O usuário deve ter entre 18 e 120 anos"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "Endereço informado por ID não localizado na base de dados",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: e-mail já cadastrado na base de dados",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
+                                      "status": 409,
+                                      "erro": "Conflito de Regra de Negócio",
+                                      "mensagem": "Não foi possível concluir a operação pois o registro possui dependências vinculadas ou viola restrições de unicidade.",
+                                      "caminho": "/usuarios"
+                                    }
+                                    """)))
+    })
+    public ResponseEntity<EntityModel<Usuario>> cadastrar(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Dados para cadastro do usuário",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = Usuario.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "nome": "João Silva",
+                                      "email": "joao@email.com",
                                       "telefone": "11999999999",
                                       "dataNascimento": "1995-05-12",
                                       "endereco": {
-                                        "id": 1
+                                        "logradouro": "Rua das Flores",
+                                        "numero": "123",
+                                        "bairro": "Centro",
+                                        "cidade": "São Paulo",
+                                        "estado": "SP",
+                                        "cep": "01001-000"
                                       }
                                     }
-                                    """
-                    )
-            )
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Usuário cadastrado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Dados do usuário inválidos ou idade fora do intervalo permitido (18 a 120 anos)"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Endereço informado não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
-    })
-    public ResponseEntity<EntityModel<Usuario>> cadastrar(
+                                    """)))
             @Valid @RequestBody Usuario usuario) {
 
-        // Validação de idade: entre 18 e 120 anos
-        LocalDate hoje = LocalDate.now();
-        LocalDate minDataNascimento = hoje.minusYears(120); // Idade máxima: 120 anos
-        LocalDate maxDataNascimento = hoje.minusYears(18);  // Idade mínima: 18 anos
-
-        if (usuario.getDataNascimento() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "A data de nascimento é obrigatória."
-            );
+        Endereco end = usuario.getEndereco();
+        if (end != null) {
+            if (end.getId() != null) {
+                Endereco endExistente = enderecoRepository.findById(end.getId())
+                        .orElseThrow(() -> new EnderecoNotFoundException(end.getId()));
+                usuario.setEndereco(endExistente);
+            } else {
+                Set<ConstraintViolation<Endereco>> erros = validator.validate(end);
+                if (!erros.isEmpty()) {
+                    throw new ConstraintViolationException(erros);
+                }
+            }
         }
 
-        if (usuario.getDataNascimento().isBefore(minDataNascimento)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Data de nascimento inválida. A idade máxima permitida é de 120 anos."
-            );
-        }
-
-        if (usuario.getDataNascimento().isAfter(maxDataNascimento)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "O usuário deve ter pelo menos 18 anos para se cadastrar."
-            );
-        }
-
-        // Se um endereço foi informado, busca o endereço existente.
-        if (usuario.getEndereco() != null) {
-
-            Endereco endereco = enderecoRepository
-                    .findById(usuario.getEndereco().getId())
-                    .orElseThrow(() ->
-                            new ResponseStatusException(
-                                    HttpStatus.NOT_FOUND,
-                                    "Endereço não encontrado"
-                            )
-                    );
-
-            usuario.setEndereco(endereco);
-        }
-
-        // Cadastra o usuário.
-        Usuario novoUsuario = repository.save(usuario);
-
-        // Retorna 201 Created com o modelo HATEOAS.
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(assembler.toModel(novoUsuario));
+        Usuario novoUsuario = usuarioRepository.save(usuario);
+        return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoUsuario));
     }
 
-
-    // ATUALIZAR USUÁRIO
     @PutMapping("/{id}")
-    @Operation(
-            summary = "Atualizar usuário",
-            description = "Atualiza nome, e-mail, telefone, data de nascimento e endereço de um usuário existente."
-    )
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "Novos dados do usuário",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    examples = @ExampleObject(
-                            value = """
+    @Operation(summary = "Atualizar usuário existente", description = "Atualiza integralmente os dados de um usuário.", operationId = "atualizarUsuario")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Usuário atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Usuário ou Endereço não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: e-mail já pertence a outro usuário",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+    })
+    public EntityModel<Usuario> atualizar(
+            @Parameter(description = "Identificador único do usuário", example = "1")
+            @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Novos dados para atualização do usuário",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = Usuario.class),
+                            examples = @ExampleObject(value = """
                                     {
-                                      "nome": "Maria Silva",
-                                      "email": "maria.silva@email.com",
-                                      "telefone": "11988888888",
+                                      "nome": "João Silva Santos",
+                                      "email": "joaosilva@email.com",
+                                      "telefone": "11988887777",
                                       "dataNascimento": "1995-05-12",
                                       "endereco": {
                                         "id": 1
                                       }
                                     }
-                                    """
-                    )
-            )
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Usuário atualizado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Dados do usuário inválidos ou idade fora do intervalo permitido"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Usuário ou endereço não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
-    })
-    public EntityModel<Usuario> atualizar(
-
-            @Parameter(
-                    description = "ID do usuário que será atualizado",
-                    example = "1"
-            )
-            @PathVariable Long id,
-
+                                    """)))
             @Valid @RequestBody Usuario usuario) {
 
-        Usuario usuarioExistente = repository.findById(id)
-                .orElseThrow(() ->
-                        new UsuarioNotFoundException(id)
-                );
+        Usuario existente = usuarioRepository.findById(id)
+                .orElseThrow(() -> new UsuarioNotFoundException(id));
 
-        // Validação de idade na atualização também
-        LocalDate hoje = LocalDate.now();
-        LocalDate minDataNascimento = hoje.minusYears(120);
-        LocalDate maxDataNascimento = hoje.minusYears(18);
+        existente.setNome(usuario.getNome());
+        existente.setEmail(usuario.getEmail());
+        existente.setTelefone(usuario.getTelefone());
+        existente.setDataNascimento(usuario.getDataNascimento());
 
-        if (usuario.getDataNascimento() != null) {
-            if (usuario.getDataNascimento().isBefore(minDataNascimento) || usuario.getDataNascimento().isAfter(maxDataNascimento)) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "O usuário deve ter entre 18 e 120 anos."
-                );
+        Endereco end = usuario.getEndereco();
+        if (end != null) {
+            if (end.getId() != null) {
+                Endereco endExistente = enderecoRepository.findById(end.getId())
+                        .orElseThrow(() -> new EnderecoNotFoundException(end.getId()));
+                existente.setEndereco(endExistente);
+            } else {
+                Set<ConstraintViolation<Endereco>> erros = validator.validate(end);
+                if (!erros.isEmpty()) {
+                    throw new ConstraintViolationException(erros);
+                }
+                existente.setEndereco(end);
             }
-            usuarioExistente.setDataNascimento(usuario.getDataNascimento());
         }
 
-        usuarioExistente.setNome(usuario.getNome());
-        usuarioExistente.setEmail(usuario.getEmail());
-        usuarioExistente.setTelefone(usuario.getTelefone());
-
-        if (usuario.getEndereco() != null) {
-
-            Endereco endereco = enderecoRepository
-                    .findById(usuario.getEndereco().getId())
-                    .orElseThrow(() ->
-                            new ResponseStatusException(
-                                    HttpStatus.NOT_FOUND,
-                                    "Endereço não encontrado"
-                            )
-                    );
-
-            usuarioExistente.setEndereco(endereco);
-        }
-
-        Usuario usuarioAtualizado =
-                repository.save(usuarioExistente);
-
+        Usuario usuarioAtualizado = usuarioRepository.save(existente);
         return assembler.toModel(usuarioAtualizado);
     }
 
-
-    // EXCLUIR USUÁRIO
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(
-            summary = "Excluir usuário",
-            description = "Exclui permanentemente um usuário cadastrado a partir do seu ID."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Usuário excluído com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Usuário não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Usuário em uso ou possui dependências associadas"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Excluir usuário", description = "Remove um usuário da base de dados se não houver empréstimos vinculados.", operationId = "excluirUsuario")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Usuário excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Usuário não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: usuário possui empréstimos associados",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(
-
-            @Parameter(
-                    description = "ID do usuário que será excluído",
-                    example = "1"
-            )
+            @Parameter(description = "Identificador único do usuário a ser excluído", example = "1")
             @PathVariable Long id) {
-
-        if (!repository.existsById(id)) {
-            throw new UsuarioNotFoundException(id);
-        }
-
-        try {
-            repository.deleteById(id);
-        } catch (DataIntegrityViolationException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Não foi possível concluir a operação pois o registro possui dependências vinculadas.",
-                    e
-            );
-        }
+        Usuario existente = usuarioRepository.findById(id)
+                .orElseThrow(() -> new UsuarioNotFoundException(id));
+        usuarioRepository.delete(existente);
     }
 }

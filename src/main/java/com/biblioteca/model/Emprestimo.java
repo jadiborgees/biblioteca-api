@@ -2,58 +2,65 @@ package com.biblioteca.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
+
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "emprestimo")
-@Schema(description = "Representação de um Empréstimo de livro efetuado no sistema")
+@Table(name = "tb_emprestimo")
 public class Emprestimo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(description = "Identificador único do empréstimo", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
     @NotNull(message = "A data de empréstimo é obrigatória")
-    @FutureOrPresent(message = "A data de empréstimo não pode ser no passado")
-    @Schema(description = "Data em que o livro foi emprestado", example = "2026-10-01", requiredMode = Schema.RequiredMode.REQUIRED)
+    @PastOrPresent(message = "A data de empréstimo não pode estar no futuro")
+    @Schema(description = "Data do empréstimo", example = "2026-10-01")
     private LocalDate dataEmprestimo;
 
-    @NotNull(message = "A data de devolução é obrigatória")
-    @Schema(description = "Data prevista ou efetiva para a devolução do livro", example = "2026-10-15", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Data prevista para devolução", example = "2026-10-15")
     private LocalDate dataDevolucao;
 
-    @NotNull(message = "O status do empréstimo é obrigatório")
+    @NotNull(message = "O status é obrigatório")
     @Enumerated(EnumType.STRING)
-    @Schema(description = "Status atual do empréstimo (ex: ATIVO, DEVOLVIDO, ATRASADO)", example = "ATIVO", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Status do empréstimo", example = "ATIVO")
     private StatusEmprestimo status;
 
-    @NotNull(message = "O usuário é obrigatório")
-    @ManyToOne
-    @JoinColumn(name = "usuario_id")
-    @Schema(description = "Usuário que realizou o empréstimo", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Usuario usuario;
-
-    @NotNull(message = "O livro é obrigatório")
     @ManyToOne
     @JoinColumn(name = "livro_id")
-    @Schema(description = "Livro associado ao empréstimo", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "O livro é obrigatório")
     private Livro livro;
 
-    public Emprestimo() {
-    }
+    @ManyToOne
+    @JoinColumn(name = "usuario_id")
+    @NotNull(message = "O usuário é obrigatório")
+    private Usuario usuario;
 
-    // Garante que todo empréstimo nasce sempre como ATIVO na criação
     @PrePersist
     public void prePersist() {
-        this.status = StatusEmprestimo.ATIVO;
         if (this.dataEmprestimo == null) {
             this.dataEmprestimo = LocalDate.now();
         }
+        if (this.status == null) {
+            this.status = StatusEmprestimo.ATIVO;
+        }
     }
 
+    // Construtores
+    public Emprestimo() {}
+
+    public Emprestimo(Long id, LocalDate dataEmprestimo, LocalDate dataDevolucao, StatusEmprestimo status, Livro livro, Usuario usuario) {
+        this.id = id;
+        this.dataEmprestimo = dataEmprestimo;
+        this.dataDevolucao = dataDevolucao;
+        this.status = status;
+        this.livro = livro;
+        this.usuario = usuario;
+    }
+
+    // Getters e Setters
     public Long getId() {
         return id;
     }
@@ -78,27 +85,12 @@ public class Emprestimo {
         this.dataDevolucao = dataDevolucao;
     }
 
-    // Lógica dinâmica: calcula o status em tempo real ao retornar o JSON
     public StatusEmprestimo getStatus() {
-        if (this.status == StatusEmprestimo.DEVOLVIDO) {
-            return StatusEmprestimo.DEVOLVIDO;
-        }
-        if (this.dataDevolucao != null && LocalDate.now().isAfter(this.dataDevolucao)) {
-            return StatusEmprestimo.ATRASADO;
-        }
-        return StatusEmprestimo.ATIVO;
+        return status;
     }
 
     public void setStatus(StatusEmprestimo status) {
         this.status = status;
-    }
-
-    public Usuario getUsuario() {
-        return usuario;
-    }
-
-    public void setUsuario(Usuario usuario) {
-        this.usuario = usuario;
     }
 
     public Livro getLivro() {
@@ -107,5 +99,13 @@ public class Emprestimo {
 
     public void setLivro(Livro livro) {
         this.livro = livro;
+    }
+
+    public Usuario getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(Usuario usuario) {
+        this.usuario = usuario;
     }
 }

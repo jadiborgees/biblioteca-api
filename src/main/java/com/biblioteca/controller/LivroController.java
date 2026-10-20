@@ -1,344 +1,222 @@
 package com.biblioteca.controller;
 
 import com.biblioteca.assembler.LivroModelAssembler;
-import com.biblioteca.exception.LivroNotFoundException;
+import com.biblioteca.exception.*;
 import com.biblioteca.model.Autor;
 import com.biblioteca.model.Livro;
 import com.biblioteca.repository.AutorRepository;
 import com.biblioteca.repository.LivroRepository;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springdoc.core.annotations.ParameterObject;
-
 import jakarta.validation.Valid;
-
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
-
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @RestController
 @RequestMapping("/livros")
-@Tag(
-        name = "Livros",
-        description = "Endpoints para cadastro, consulta, atualização e exclusão dos livros da biblioteca"
-)
+@Tag(name = "Livros", description = "Catálogo bibliográfico, paginação e vínculos de autoria")
 public class LivroController {
 
-    private final LivroRepository repository;
-    private final AutorRepository autorRepository;
-    private final LivroModelAssembler assembler;
+    @Autowired
+    private LivroRepository livroRepository;
 
-    public LivroController(
-            LivroRepository repository,
-            AutorRepository autorRepository,
-            LivroModelAssembler assembler) {
+    @Autowired
+    private AutorRepository autorRepository;
 
-        this.repository = repository;
-        this.autorRepository = autorRepository;
-        this.assembler = assembler;
-    }
+    @Autowired
+    private LivroModelAssembler assembler;
 
-    // LISTAR LIVROS
     @GetMapping
-    @Operation(
-            summary = "Listar livros",
-            description = "Retorna todos os livros cadastrados de forma paginada."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Livros listados com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Listar livros", description = "Recupera uma lista paginada de livros.", operationId = "listarLivros")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de livros recuperada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
-    public PagedModel<EntityModel<Livro>> listar(
+    public ResponseEntity<PagedModel<EntityModel<Livro>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Livro> pagedAssembler) {
+            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
-        Page<Livro> livros = repository.findAll(pageable);
-
-        return pagedAssembler.toModel(livros, assembler);
+        Page<Livro> page = livroRepository.findAll(pageable);
+        PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
     }
 
-    // BUSCAR LIVROS POR TÍTULO
     @GetMapping("/buscar")
-    @Operation(
-            summary = "Buscar livros por título",
-            description = "Busca livros que contenham o texto informado no título. " +
-                    "A busca não diferencia letras maiúsculas e minúsculas e o resultado é paginado."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Busca realizada com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Parâmetro de busca inválido"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Buscar livros por título", description = "Consulta personalizada que filtra livros pelo título (busca parcial e case-insensitive).", operationId = "buscarLivrosPorTitulo")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
-    public PagedModel<EntityModel<Livro>> buscarPorTitulo(
-            @Parameter(
-                    description = "Título completo ou parte do título do livro",
-                    example = "Dom"
-            )
+    public ResponseEntity<PagedModel<EntityModel<Livro>>> buscarPorTitulo(
+            @Parameter(description = "Título do livro para filtragem parcial", required = true, example = "Dom Casmurro")
             @RequestParam String titulo,
-
             @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
-            PagedResourcesAssembler<Livro> pagedAssembler) {
-
-        Page<Livro> livros =
-                repository.findByTituloContainingIgnoreCase(
-                        titulo,
-                        pageable
-                );
-
-        return pagedAssembler.toModel(livros, assembler);
+        Page<Livro> page = livroRepository.findByTituloContainingIgnoreCase(titulo, pageable);
+        PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
     }
 
-    // BUSCAR LIVRO POR ID
     @GetMapping("/{id}")
-    @Operation(
-            summary = "Buscar livro por ID",
-            description = "Retorna os dados de um livro específico a partir do seu identificador."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Livro encontrado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Livro não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Buscar livro por ID", description = "Retorna os detalhes de um livro específico.", operationId = "buscarLivroPorId")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Livro encontrado com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Livro não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
+                                      "status": 404,
+                                      "erro": "Não Encontrado",
+                                      "mensagem": "Livro não encontrado com o ID: 99",
+                                      "caminho": "/livros/99"
+                                    }
+                                    """)))
     })
-    public EntityModel<Livro> buscar(
-            @Parameter(
-                    description = "ID do livro",
-                    example = "1"
-            )
-            @PathVariable Long id) {
-
-        Livro livro = repository.findById(id)
-                .orElseThrow(() ->
-                        new LivroNotFoundException(id)
-                );
-
+    public EntityModel<Livro> buscar(@PathVariable Long id) {
+        Livro livro = livroRepository.findById(id)
+                .orElseThrow(() -> new LivroNotFoundException(id));
         return assembler.toModel(livro);
     }
 
-    // CADASTRAR LIVRO
     @PostMapping
-    @Operation(
-            summary = "Cadastrar livro",
-            description = "Cadastra um novo livro na base de dados."
-    )
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "Dados do livro que será cadastrado",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    examples = @ExampleObject(
-                            value = """
+    @Operation(summary = "Cadastrar novo livro", description = "Registra um novo livro no acervo. Exige ISBN único e vincula autores cadastrados.", operationId = "cadastrarLivro")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Livro cadastrado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Autor não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: ISBN já cadastrado na base de dados",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
+                            examples = @ExampleObject(value = """
                                     {
-                                      "titulo": "Quincas Borba",
-                                      "isbn": "9788535910665",
-                                      "anoPublicacao": 1891,
-                                      "autores": []
+                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
+                                      "status": 409,
+                                      "erro": "Conflito de Regra de Negócio",
+                                      "mensagem": "Não foi possível concluir a operação pois o registro possui dependências vinculadas ou viola restrições de unicidade.",
+                                      "caminho": "/livros"
                                     }
-                                    """
-                    )
-            )
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Livro cadastrado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Dados do livro inválidos"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Autor informado não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+                                    """)))
     })
     public ResponseEntity<EntityModel<Livro>> cadastrar(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Dados para cadastro de livro",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = Livro.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "titulo": "Dom Casmurro",
+                                      "isbn": "9788535902778",
+                                      "anoPublicacao": 1899,
+                                      "autores": [
+                                        { "id": 1 }
+                                      ]
+                                    }
+                                    """)))
             @Valid @RequestBody Livro livro) {
 
-        Set<Autor> autores = new HashSet<>();
-
-        if (livro.getAutores() != null) {
-            for (Autor autorRecebido : livro.getAutores()) {
-                Autor autor = autorRepository
-                        .findById(autorRecebido.getId())
-                        .orElseThrow(() ->
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        "Autor não encontrado"
-                                )
-                        );
-                autores.add(autor);
+        if (livro.getAutores() != null && !livro.getAutores().isEmpty()) {
+            Set<Autor> autoresCarregados = new HashSet<>();
+            for (Autor a : livro.getAutores()) {
+                if (a.getId() != null) {
+                    Autor autorExistente = autorRepository.findById(a.getId())
+                            .orElseThrow(() -> new AutorNotFoundException(a.getId()));
+                    autoresCarregados.add(autorExistente);
+                }
             }
+            livro.setAutores(autoresCarregados);
         }
 
-        livro.setAutores(autores);
-
-        Livro novoLivro = repository.save(livro);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(assembler.toModel(novoLivro));
+        Livro novoLivro = livroRepository.save(livro);
+        return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoLivro));
     }
 
-    // ATUALIZAR LIVRO
     @PutMapping("/{id}")
-    @Operation(
-            summary = "Atualizar livro",
-            description = "Atualiza título, ISBN, ano de publicação e autores de um livro existente."
-    )
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "Novos dados do livro",
-            required = true,
-            content = @Content(
-                    mediaType = "application/json",
-                    examples = @ExampleObject(
-                            value = """
-                                    {
-                                      "titulo": "Quincas Borba - Edição Atualizada",
-                                      "isbn": "9788535910665",
-                                      "anoPublicacao": 1891,
-                                      "autores": []
-                                    }
-                                    """
-                    )
-            )
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Livro atualizado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Dados do livro inválidos"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Livro ou autor não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Atualizar livro existente", description = "Atualiza integralmente os dados de um livro.", operationId = "atualizarLivro")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Livro atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Livro ou Autor não localizado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: ISBN já pertence a outro livro",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
-    public EntityModel<Livro> editar(
-            @Parameter(
-                    description = "ID do livro que será atualizado",
-                    example = "1"
-            )
+    public EntityModel<Livro> atualizar(
             @PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Novos dados para atualização do livro",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = Livro.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "titulo": "Dom Casmurro - Edição Especial",
+                                      "isbn": "9788535902778",
+                                      "anoPublicacao": 1900,
+                                      "autores": [
+                                        { "id": 1 }
+                                      ]
+                                    }
+                                    """)))
+            @Valid @RequestBody Livro livro) {
 
-            @Valid @RequestBody Livro livroNovo) {
+        Livro existente = livroRepository.findById(id)
+                .orElseThrow(() -> new LivroNotFoundException(id));
 
-        Livro livro = repository.findById(id)
-                .orElseThrow(() ->
-                        new LivroNotFoundException(id)
-                );
+        existente.setTitulo(livro.getTitulo());
+        existente.setIsbn(livro.getIsbn());
+        existente.setAnoPublicacao(livro.getAnoPublicacao());
 
-        Set<Autor> autores = new HashSet<>();
-
-        if (livroNovo.getAutores() != null) {
-            for (Autor autorRecebido : livroNovo.getAutores()) {
-                Autor autor = autorRepository
-                        .findById(autorRecebido.getId())
-                        .orElseThrow(() ->
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        "Autor não encontrado"
-                                )
-                        );
-                autores.add(autor);
+        if (livro.getAutores() != null) {
+            Set<Autor> autoresCarregados = new HashSet<>();
+            for (Autor a : livro.getAutores()) {
+                if (a.getId() != null) {
+                    Autor autorExistente = autorRepository.findById(a.getId())
+                            .orElseThrow(() -> new AutorNotFoundException(a.getId()));
+                    autoresCarregados.add(autorExistente);
+                }
             }
+            existente.setAutores(autoresCarregados);
         }
 
-        livro.setTitulo(livroNovo.getTitulo());
-        livro.setIsbn(livroNovo.getIsbn());
-        livro.setAnoPublicacao(livroNovo.getAnoPublicacao());
-        livro.setAutores(autores);
-
-        Livro livroAtualizado = repository.save(livro);
-
+        Livro livroAtualizado = livroRepository.save(existente);
         return assembler.toModel(livroAtualizado);
     }
 
-    // EXCLUIR LIVRO
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(
-            summary = "Excluir livro",
-            description = "Exclui permanentemente um livro cadastrado a partir do seu ID."
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Livro excluído com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Livro não encontrado"
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "Erro interno no servidor"
-            )
+    @Operation(summary = "Excluir livro", description = "Remove um livro da base de dados se não houver empréstimos associados.", operationId = "excluirLivro")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Livro excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Livro não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: livro possui empréstimos ativos ou histórico associado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
-    public void excluir(
-            @Parameter(
-                    description = "ID do livro que será excluído",
-                    example = "1"
-            )
-            @PathVariable Long id) {
-
-        Livro livro = repository.findById(id)
-                .orElseThrow(() ->
-                        new LivroNotFoundException(id)
-                );
-
-        repository.delete(livro);
+    public void excluir(@PathVariable Long id) {
+        Livro existente = livroRepository.findById(id)
+                .orElseThrow(() -> new LivroNotFoundException(id));
+        livroRepository.delete(existente);
     }
 }
