@@ -57,7 +57,7 @@ public class UsuarioController {
     })
     public ResponseEntity<PagedModel<EntityModel<Usuario>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
         Page<Usuario> page = usuarioRepository.findAll(pageable);
         PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -75,7 +75,7 @@ public class UsuarioController {
             @Parameter(description = "Nome do usuário para filtragem parcial", required = true, example = "João")
             @RequestParam String nome,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
         Page<Usuario> page = usuarioRepository.findByNomeContainingIgnoreCase(nome, pageable);
         PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -153,7 +153,7 @@ public class UsuarioController {
                                         "logradouro": "Rua das Flores",
                                         "numero": "123",
                                         "bairro": "Centro",
-                                        "cidade": "São Paulo",
+                                        "cidade": "Taboão da Serra",
                                         "estado": "SP",
                                         "cep": "01001-000"
                                       }

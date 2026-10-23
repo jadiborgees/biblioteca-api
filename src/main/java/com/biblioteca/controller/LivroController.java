@@ -52,7 +52,7 @@ public class LivroController {
     })
     public ResponseEntity<PagedModel<EntityModel<Livro>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
         Page<Livro> page = livroRepository.findAll(pageable);
         PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -70,7 +70,7 @@ public class LivroController {
             @Parameter(description = "Título do livro para filtragem parcial", required = true, example = "Dom Casmurro")
             @RequestParam String titulo,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
         Page<Livro> page = livroRepository.findByTituloContainingIgnoreCase(titulo, pageable);
         PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);

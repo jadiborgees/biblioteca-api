@@ -57,7 +57,7 @@ public class EmprestimoController {
     })
     public ResponseEntity<PagedModel<EntityModel<Emprestimo>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
 
         Page<Emprestimo> page = emprestimoRepository.findAll(pageable);
         PagedModel<EntityModel<Emprestimo>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -75,7 +75,7 @@ public class EmprestimoController {
             @Parameter(description = "Status do empréstimo", required = true, example = "ATIVO")
             @RequestParam StatusEmprestimo status,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
 
         Page<Emprestimo> page = emprestimoRepository.findByStatus(status, pageable);
         PagedModel<EntityModel<Emprestimo>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);

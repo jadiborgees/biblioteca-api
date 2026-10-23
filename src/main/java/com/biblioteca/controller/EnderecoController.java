@@ -45,7 +45,7 @@ public class EnderecoController {
     })
     public ResponseEntity<PagedModel<EntityModel<Endereco>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
 
         Page<Endereco> page = enderecoRepository.findAll(pageable);
         PagedModel<EntityModel<Endereco>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -60,10 +60,10 @@ public class EnderecoController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<PagedModel<EntityModel<Endereco>>> buscarPorCidade(
-            @Parameter(description = "Nome da cidade para filtragem parcial", required = true, example = "São Paulo")
+            @Parameter(description = "Nome da cidade para filtragem parcial", required = true, example = "Taboão da Serra")
             @RequestParam String cidade,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
 
         Page<Endereco> page = enderecoRepository.findByCidadeContainingIgnoreCase(cidade, pageable);
         PagedModel<EntityModel<Endereco>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -124,9 +124,9 @@ public class EnderecoController {
                                       "numero": "123",
                                       "complemento": "Apto 101",
                                       "bairro": "Centro",
-                                      "cidade": "São Paulo",
+                                      "cidade": "Taboão da Serra",
                                       "estado": "SP",
-                                      "cep": "01001-000"
+                                      "cep": "06753-000"
                                     }
                                     """)))
             @Valid @RequestBody Endereco endereco) {
@@ -156,9 +156,9 @@ public class EnderecoController {
                                       "numero": "1000",
                                       "complemento": "Conjunto 50",
                                       "bairro": "Bela Vista",
-                                      "cidade": "São Paulo",
+                                      "cidade": "Taboão da Serra",
                                       "estado": "SP",
-                                      "cep": "01310-100"
+                                      "cep": "06753-100"
                                     }
                                     """)))
             @Valid @RequestBody Endereco endereco) {

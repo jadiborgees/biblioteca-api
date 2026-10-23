@@ -31,19 +31,28 @@ API REST desenvolvida em Java e Spring Boot para o gerenciamento de um ecossiste
 
 ---
 
-### Arquitetura e Padrões de Projeto
+### Arquitetura, Segurança e Padrões de Projeto
 
 - **Formato de Dados:** Todas as requisições e respostas operam estritamente em `application/json` codificado em UTF-8.
 
+
 - **Persistência e Banco de Dados:** Utiliza Spring Data JPA com banco de dados em memória H2 (`jdbc:h2:mem:testdb`). Os dados inseridos em tempo de execução são redefinidos ao encerrar a aplicação.
+
+
+- **Controle de Tráfego e Segurança:** Suporte completo a CORS e limitação de requisições (*Rate Limiting*) implementada via algoritmo *Token Bucket* (limite padrão de 30 requisições por minuto por cliente). Caso o limite seja excedido, a API retorna o status HTTP `429 Too Many Requests` acompanhado do tempo exato de espera em segundos para nova tentativa.
+
 
 - **Nível de Maturidade REST (HATEOAS):** As respostas incluem hipermídia dinâmica (`_links`) para facilitar a navegação entre recursos relacionados:
 
+
 - `self`: Acesso direto ao recurso consultado.
+
 
 - `livros` / `autores` / `usuarios` / `enderecos` / `emprestimos`: Links para coleções e entidades associadas.
 
+
 - `devolver`: Operação específica vinculada ao fluxo de devolução de empréstimos ativos.
+
 
 
 ---
@@ -52,7 +61,9 @@ API REST desenvolvida em Java e Spring Boot para o gerenciamento de um ecossiste
 
 - **Validação de Prazos e Devolução:** O registro de devolução (`PATCH /emprestimos/{id}/devolver`) altera o status do empréstimo diretamente para `DEVOLVIDO`. Tentativas de devolver empréstimos que já se encontram finalizados retornam `409 Conflict`.
 
+
 - **Campos e Datas:** A data do empréstimo aceita apenas valores presentes ou passados (`@PastOrPresent`). A data de devolução prevista pode ser informada opcionalmente no cadastro.
+
 
 
 ---
@@ -61,6 +72,7 @@ API REST desenvolvida em Java e Spring Boot para o gerenciamento de um ecossiste
 
 Devido às restrições de chave estrangeira (`Foreign Key`) e integridade referencial do banco de dados, os cadastros via `POST` devem seguir uma ordem lógica estrita (FIFO):
 1. **Endereço (`POST /enderecos`)**: Pode ser cadastrado previamente para reutilização por múltiplos usuários.
+
 
 2. **Usuário (`POST /usuarios`)**: Aceita o vínculo com um endereço pré-existente (passando o `"id"`) ou com a criação de um novo endereço embutido no próprio payload.
 3. **Autor (`POST /autores`)**: Pode ser cadastrado antes dos livros para associação no acervo.
@@ -74,13 +86,18 @@ Devido às restrições de chave estrangeira (`Foreign Key`) e integridade refer
 O modelo de domínio é composto por cinco entidades principais e um enumerador de controle:
 - **Usuario e Endereco:** Relacionamento `One-to-One`.
 
+
 - **Usuario e Emprestimo:** Relacionamento `One-to-Many`.
+
 
 - **Livro e Autor:** Relacionamento `Many-to-Many` (livros podem ter múltiplos autores associados).
 
+
 - **Emprestimo e Livro:** Relacionamento `Many-to-One`.
 
+
 - **StatusEmprestimo (Enum):** Valores aceitos (`ATIVO`, `DEVOLVIDO`, `ATRASADO`).
+
 
 
 ---
@@ -90,13 +107,18 @@ O modelo de domínio é composto por cinco entidades principais e um enumerador 
 Para otimizar o tráfego de dados, as listagens gerais utilizam paginação padrão via `@ParameterObject Pageable`. Além disso, a API disponibiliza endpoints de busca especializada por parâmetros:
 - **Livros:** Busca por título.
 
+
 - **Autores:** Busca por nome.
+
 
 - **Usuários:** Busca por nome.
 
+
 - **Endereços:** Busca por cidade.
 
+
 - **Empréstimos:** Busca por status.
+
 
 
 ---
@@ -105,7 +127,9 @@ Para otimizar o tráfego de dados, as listagens gerais utilizam paginação padr
 
 - **Bean Validation:** Validação declarativa rigorosa nos payloads de entrada (campos obrigatórios, formatação e restrições de tamanho). Dados inválidos retornam `400 Bad Request`.
 
+
 - **Tratamento Global (`@ControllerAdvice`):** Centralização de exceções para padronizar mensagens descritivas de erro através da estrutura `ErroResponse`.
+
 
 
 | Código HTTP | Significado e Cenário de Aplicação |
@@ -117,6 +141,7 @@ Para otimizar o tráfego de dados, as listagens gerais utilizam paginação padr
 | **404 Not Found** | O recurso solicitado não foi localizado na base de dados. |
 | **405 Method Not Allowed** | Método HTTP não permitido para a rota solicitada. |
 | **409 Conflict** | Violação de regra de negócio ou restrição de integridade. |
+| **429 Too Many Requests** | Limite de tráfego excedido (Rate Limit / Token Bucket). O retorno especifica o tempo em segundos para nova tentativa. |
 | **500 Internal Server Error** | Erro inesperado no servidor ou falha interna. |
 
 ---
@@ -125,6 +150,7 @@ Para otimizar o tráfego de dados, as listagens gerais utilizam paginação padr
 
 Para testes manuais que respeitem as restrições de chave estrangeira ao apagar registos, elimine na ordem inversa da criação:
 1. `DELETE /emprestimos/{id}`
+
 
 2. `DELETE /livros/{id}`
 3. `DELETE /autores/{id}`
@@ -149,6 +175,7 @@ Para testes manuais que respeitem as restrições de chave estrangeira ao apagar
                         .title("Gestão para Biblioteca Comunitária API")
                         .version("v1.0")
                         .description(description)
+                        .termsOfService("https://www.biblioteca.com/termos-de-uso")
                         .contact(contact)
                         .license(license))
                 .servers(List.of(devServer))

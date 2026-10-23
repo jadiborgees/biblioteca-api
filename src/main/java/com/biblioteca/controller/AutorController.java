@@ -45,7 +45,7 @@ public class AutorController {
     })
     public ResponseEntity<PagedModel<EntityModel<Autor>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
 
         Page<Autor> page = autorRepository.findAll(pageable);
         PagedModel<EntityModel<Autor>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -63,7 +63,7 @@ public class AutorController {
             @Parameter(description = "Nome do autor para filtragem parcial", required = true, example = "Machado")
             @RequestParam String nome,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
 
         Page<Autor> page = autorRepository.findByNomeContainingIgnoreCase(nome, pageable);
         PagedModel<EntityModel<Autor>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
