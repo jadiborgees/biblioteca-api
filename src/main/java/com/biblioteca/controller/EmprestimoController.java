@@ -142,8 +142,9 @@ public class EmprestimoController {
                     content = @Content(schema = @Schema(implementation = Emprestimo.class),
                             examples = @ExampleObject(value = """
                                     {
-                                      "dataEmprestimo": "2026-10-13",
-                                      "dataDevolucao": "2026-10-27",
+                                      "dataEmprestimo": "2026-10-30",
+                                      "dataDevolucaoPrevista": "2026-11-13",
+                                      "status": "ATIVO",
                                       "usuario": { "id": 1 },
                                       "livro": { "id": 1 }
                                     }
@@ -205,8 +206,8 @@ public class EmprestimoController {
                     content = @Content(schema = @Schema(implementation = Emprestimo.class),
                             examples = @ExampleObject(value = """
                                     {
-                                      "dataEmprestimo": "2026-10-13",
-                                      "dataDevolucao": "2026-11-01",
+                                      "dataEmprestimo": "2026-10-30",
+                                      "dataDevolucaoPrevista": "2026-11-13",
                                       "status": "ATIVO",
                                       "usuario": { "id": 1 },
                                       "livro": { "id": 1 }
@@ -235,6 +236,7 @@ public class EmprestimoController {
         }
 
         existente.setDataEmprestimo(emprestimo.getDataEmprestimo());
+        existente.setDataDevolucaoPrevista(emprestimo.getDataDevolucaoPrevista());
         existente.setDataDevolucao(emprestimo.getDataDevolucao());
         if (emprestimo.getStatus() != null) {
             existente.setStatus(emprestimo.getStatus());
