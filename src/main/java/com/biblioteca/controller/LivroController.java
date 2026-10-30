@@ -3,6 +3,7 @@ package com.biblioteca.controller;
 import com.biblioteca.assembler.LivroModelAssembler;
 import com.biblioteca.exception.ErroResponse;
 import com.biblioteca.exception.LivroNotFoundException;
+import com.biblioteca.exception.RegraNegocioException;
 import com.biblioteca.model.Livro;
 import com.biblioteca.repository.LivroRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +26,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/livros")
 @Tag(name = "Livros", description = "Gerenciamento do acervo de livros da biblioteca")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "405", description = "Método HTTP não permitido para esta rota",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Erro interno no servidor",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+})
 public class LivroController {
 
     @Autowired
@@ -80,7 +89,7 @@ public class LivroController {
     @Operation(summary = "Cadastrar novo livro", description = "Cadastra um novo livro no acervo associando autores existentes.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Livro cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou ISBN incorreto",
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos, ISBN incorreto ou ano de publicação futuro",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "409", description = "Conflito: ISBN já cadastrado no sistema",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
@@ -102,6 +111,10 @@ public class LivroController {
                                     """)))
             @Valid @RequestBody Livro livro) {
 
+        if (livro.getAnoPublicacao() != null && livro.getAnoPublicacao() > LocalDate.now().getYear()) {
+            throw new RegraNegocioException("O ano de publicação não pode ser maior que o ano atual.");
+        }
+
         Livro novoLivro = livroRepository.save(livro);
         return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoLivro));
     }
@@ -110,9 +123,11 @@ public class LivroController {
     @Operation(summary = "Atualizar livro existente", description = "Atualiza os dados de um livro cadastrado.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Livro atualizado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
+            @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos ou ano de publicação futuro",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Livro não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: ISBN informado já pertence a outro livro",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Livro> atualizar(
@@ -122,6 +137,10 @@ public class LivroController {
 
         Livro existente = livroRepository.findById(id)
                 .orElseThrow(() -> new LivroNotFoundException(id));
+
+        if (livro.getAnoPublicacao() != null && livro.getAnoPublicacao() > LocalDate.now().getYear()) {
+            throw new RegraNegocioException("O ano de publicação não pode ser maior que o ano atual.");
+        }
 
         existente.setTitulo(livro.getTitulo());
         existente.setIsbn(livro.getIsbn());

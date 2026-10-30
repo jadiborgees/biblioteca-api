@@ -13,6 +13,7 @@ public class Emprestimo {
     private Long id;
 
     @NotNull(message = "A data de empréstimo é obrigatória.")
+    @PastOrPresent(message = "A data do empréstimo não pode ser futura.")
     private LocalDate dataEmprestimo;
 
     @NotNull(message = "A data de devolução prevista é obrigatória.")
@@ -35,7 +36,6 @@ public class Emprestimo {
 
     public Emprestimo() {}
 
-    // Getters e Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public LocalDate getDataEmprestimo() { return dataEmprestimo; }

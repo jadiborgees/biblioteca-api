@@ -28,6 +28,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/autores")
 @Tag(name = "Autores", description = "Gestão dos autores cadastrados na biblioteca")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "405", description = "Método HTTP não permitido para esta rota",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Erro interno no servidor",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+})
 public class AutorController {
 
     @Autowired
@@ -57,16 +63,7 @@ public class AutorController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Autor localizado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Autor não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-30T10:00:00.000+00:00",
-                                      "status": 404,
-                                      "erro": "Não Encontrado",
-                                      "mensagem": "Autor não encontrado com o ID: 99",
-                                      "caminho": "/autores/99"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Autor> buscarPorId(
             @Parameter(description = "Identificador único do autor", example = "1")

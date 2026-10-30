@@ -34,6 +34,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/emprestimos")
 @Tag(name = "Empréstimos", description = "Controle operacional de prazos, fluxos e rotas de devolução via PATCH")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "405", description = "Método HTTP não permitido para esta rota",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Erro interno no servidor",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+})
 public class EmprestimoController {
 
     @Autowired
@@ -87,16 +93,7 @@ public class EmprestimoController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empréstimo encontrado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Empréstimo não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 404,
-                                      "erro": "Não Encontrado",
-                                      "mensagem": "Empréstimo não encontrado com o ID: 99",
-                                      "caminho": "/emprestimos/99"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Emprestimo> buscarPorId(
             @Parameter(description = "Identificador único do empréstimo", example = "1")
@@ -111,29 +108,11 @@ public class EmprestimoController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Empréstimo cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou datas inconsistentes",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 400,
-                                      "erro": "Erro de Validação",
-                                      "mensagem": "Um ou mais campos preenchidos são inválidos.",
-                                      "caminho": "/emprestimos"
-                                    }
-                                    """))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Usuário ou Livro não localizado pelo ID informado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "409", description = "Conflito: este livro já se encontra emprestado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 409,
-                                      "erro": "Conflito de Regra de Negócio",
-                                      "mensagem": "Este livro já está emprestado e ainda não foi devolvido.",
-                                      "caminho": "/emprestimos"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -164,9 +143,9 @@ public class EmprestimoController {
         Livro livro = livroRepository.findById(emprestimo.getLivro().getId())
                 .orElseThrow(() -> new LivroNotFoundException(emprestimo.getLivro().getId()));
 
-        if (emprestimo.getDataDevolucao() != null && emprestimo.getDataEmprestimo() != null
-                && emprestimo.getDataDevolucao().isBefore(emprestimo.getDataEmprestimo())) {
-            throw new RegraNegocioException("A data de devolução não pode ser anterior à data de empréstimo.");
+        if (emprestimo.getDataDevolucaoPrevista() != null && emprestimo.getDataEmprestimo() != null
+                && emprestimo.getDataDevolucaoPrevista().isBefore(emprestimo.getDataEmprestimo())) {
+            throw new RegraNegocioException("A data de devolução prevista não pode ser anterior à data de empréstimo.");
         }
 
         List<Emprestimo> emprestimosAtivos = emprestimoRepository.findByLivroIdAndStatusIn(
@@ -195,24 +174,13 @@ public class EmprestimoController {
             @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Empréstimo, Usuário ou Livro não localizado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: alteração gera duplicidade ou conflito de regra",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Emprestimo> atualizar(
             @Parameter(description = "Identificador único do empréstimo", example = "1")
             @PathVariable Long id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Novos dados para atualização do empréstimo",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = Emprestimo.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "dataEmprestimo": "2026-10-30",
-                                      "dataDevolucaoPrevista": "2026-11-13",
-                                      "status": "ATIVO",
-                                      "usuario": { "id": 1 },
-                                      "livro": { "id": 1 }
-                                    }
-                                    """)))
             @Valid @RequestBody Emprestimo emprestimo) {
 
         Emprestimo existente = emprestimoRepository.findById(id)
@@ -230,9 +198,9 @@ public class EmprestimoController {
             existente.setLivro(livro);
         }
 
-        if (emprestimo.getDataDevolucao() != null && emprestimo.getDataEmprestimo() != null
-                && emprestimo.getDataDevolucao().isBefore(emprestimo.getDataEmprestimo())) {
-            throw new RegraNegocioException("A data de devolução não pode ser anterior à data de empréstimo.");
+        if (emprestimo.getDataDevolucaoPrevista() != null && emprestimo.getDataEmprestimo() != null
+                && emprestimo.getDataDevolucaoPrevista().isBefore(emprestimo.getDataEmprestimo())) {
+            throw new RegraNegocioException("A data de devolução prevista não pode ser anterior à data de empréstimo.");
         }
 
         existente.setDataEmprestimo(emprestimo.getDataEmprestimo());
@@ -253,16 +221,7 @@ public class EmprestimoController {
             @ApiResponse(responseCode = "404", description = "Empréstimo não localizado pelo ID informado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "409", description = "Conflito: empréstimo já se encontra finalizado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 409,
-                                      "erro": "Conflito de Regra de Negócio",
-                                      "mensagem": "Este empréstimo já foi devolvido e finalizado.",
-                                      "caminho": "/emprestimos/1/devolver"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Emprestimo> devolver(
             @Parameter(description = "Identificador único do empréstimo a ser devolvido", example = "1")

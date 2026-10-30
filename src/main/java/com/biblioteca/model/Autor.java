@@ -16,6 +16,7 @@ public class Autor {
     @Size(min = 2, max = 100, message = "O nome do autor deve ter entre 2 e 100 caracteres.")
     private String nome;
 
+    @Size(max = 60, message = "A nacionalidade deve ter no máximo 60 caracteres.")
     private String nacionalidade;
 
     public Autor() {}

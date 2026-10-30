@@ -27,7 +27,13 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/enderecos")
-@Tag(name = "Endereços", description = "Gerenciamento de dados residenciais e localizações geográficas")
+@Tag(name = "Endereços", description = "Gestão de endereços residenciais vinculados aos usuários")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "405", description = "Método HTTP não permitido para esta rota",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Erro interno no servidor",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+})
 public class EnderecoController {
 
     @Autowired
@@ -37,7 +43,7 @@ public class EnderecoController {
     private EnderecoModelAssembler assembler;
 
     @GetMapping
-    @Operation(summary = "Listar endereços", description = "Recupera uma lista paginada de todos os endereços cadastrados.", operationId = "listarEnderecos")
+    @Operation(summary = "Listar endereços", description = "Recupera uma lista paginada de todos os endereços cadastrados.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista de endereços recuperada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Parâmetros de paginação inválidos",
@@ -52,39 +58,12 @@ public class EnderecoController {
         return ResponseEntity.ok(pagedModel);
     }
 
-    @GetMapping("/buscar")
-    @Operation(summary = "Buscar endereços por cidade", description = "Consulta personalizada que filtra endereços pelo nome da cidade (busca parcial e case-insensitive).", operationId = "buscarEnderecosPorCidade")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
-    })
-    public ResponseEntity<PagedModel<EntityModel<Endereco>>> buscarPorCidade(
-            @Parameter(description = "Nome da cidade para filtragem parcial", required = true, example = "São Paulo")
-            @RequestParam String cidade,
-            @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
-
-        Page<Endereco> page = enderecoRepository.findByCidadeContainingIgnoreCase(cidade, pageable);
-        PagedModel<EntityModel<Endereco>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
-        return ResponseEntity.ok(pagedModel);
-    }
-
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar endereço por ID", description = "Retorna os detalhes de um endereço específico cadastrado na base de dados.", operationId = "buscarEnderecoPorId")
+    @Operation(summary = "Buscar endereço por ID", description = "Retorna os detalhes de um endereço específico.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Endereço encontrado com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Endereço localizado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Endereço não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 404,
-                                      "erro": "Não Encontrado",
-                                      "mensagem": "Endereço não encontrado com o ID: 99",
-                                      "caminho": "/enderecos/99"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Endereco> buscarPorId(
             @Parameter(description = "Identificador único do endereço", example = "1")
@@ -95,47 +74,36 @@ public class EnderecoController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo endereço", description = "Registra um novo endereço com validação de campos e formato do CEP.", operationId = "cadastrarEndereco")
+    @Operation(summary = "Cadastrar novo endereço", description = "Cadastra um novo endereço no sistema.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Endereço cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou falha de validação no CEP",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 400,
-                                      "erro": "Erro de Validação",
-                                      "mensagem": "Um ou mais campos preenchidos são inválidos.",
-                                      "caminho": "/enderecos",
-                                      "campos": {
-                                        "cep": "O CEP deve estar no formato 00000-000 ou 00000000"
-                                      }
-                                    }
-                                    """)))
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou CEP fora do padrão",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Endereco>> cadastrar(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Dados do novo endereço a ser registrado",
+                    description = "Dados do endereço para cadastro",
                     required = true,
                     content = @Content(schema = @Schema(implementation = Endereco.class),
                             examples = @ExampleObject(value = """
                                     {
-                                      "logradouro": "Rua das Flores",
-                                      "numero": "123",
-                                      "complemento": "Apto 101",
-                                      "bairro": "Centro",
+                                      "logradouro": "Avenida Paulista",
+                                      "numero": "1000",
+                                      "complemento": "Apto 42",
+                                      "bairro": "Bela Vista",
                                       "cidade": "São Paulo",
                                       "estado": "SP",
-                                      "cep": "01001-000"
+                                      "cep": "01310-100"
                                     }
                                     """)))
             @Valid @RequestBody Endereco endereco) {
+
         Endereco novoEndereco = enderecoRepository.save(endereco);
         return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoEndereco));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualizar endereço existente", description = "Atualiza integralmente os dados de um endereço identificado pelo ID.", operationId = "atualizarEndereco")
+    @Operation(summary = "Atualizar endereço existente", description = "Atualiza os dados de um endereço.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Endereço atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
@@ -146,22 +114,8 @@ public class EnderecoController {
     public EntityModel<Endereco> atualizar(
             @Parameter(description = "Identificador único do endereço", example = "1")
             @PathVariable Long id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Novos dados do endereço para substituição",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = Endereco.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "logradouro": "Avenida Paulista",
-                                      "numero": "1000",
-                                      "complemento": "Conjunto 50",
-                                      "bairro": "Bela Vista",
-                                      "cidade": "São Paulo",
-                                      "estado": "SP",
-                                      "cep": "01310-100"
-                                    }
-                                    """)))
             @Valid @RequestBody Endereco endereco) {
+
         Endereco existente = enderecoRepository.findById(id)
                 .orElseThrow(() -> new EnderecoNotFoundException(id));
 
@@ -179,22 +133,11 @@ public class EnderecoController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Excluir endereço", description = "Remove um registro de endereço da base de dados se não houver usuários vinculados.", operationId = "excluirEndereco")
+    @Operation(summary = "Excluir endereço", description = "Remove um endereço da base de dados.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Endereço excluído com sucesso"),
             @ApiResponse(responseCode = "404", description = "Endereço não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Não foi possível excluir pois o endereço está associado a um usuário cadastrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
-                                      "status": 409,
-                                      "erro": "Conflito de Regra de Negócio",
-                                      "mensagem": "Não foi possível concluir a operação pois o registro possui dependências vinculadas ou viola restrições de unicidade.",
-                                      "caminho": "/enderecos/1"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(
             @Parameter(description = "Identificador único do endereço a ser excluído", example = "1")

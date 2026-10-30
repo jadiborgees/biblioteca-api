@@ -14,6 +14,7 @@ public class Livro {
     private Long id;
 
     @NotBlank(message = "O título é obrigatório.")
+    @Size(min = 2, max = 150, message = "O título deve ter entre 2 e 150 caracteres.")
     private String titulo;
 
     @NotBlank(message = "O ISBN é obrigatório.")
@@ -23,7 +24,6 @@ public class Livro {
 
     @NotNull(message = "O ano de publicação é obrigatório.")
     @Min(value = 1000, message = "Ano de publicação inválido.")
-    @Max(value = 2026, message = "O ano de publicação não pode ser no futuro.")
     private Integer anoPublicacao;
 
     @NotEmpty(message = "O livro deve possuir pelo menos um autor.")
@@ -37,7 +37,6 @@ public class Livro {
 
     public Livro() {}
 
-    // Getters e Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitulo() { return titulo; }

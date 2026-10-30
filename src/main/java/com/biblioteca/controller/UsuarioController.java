@@ -28,6 +28,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/usuarios")
 @Tag(name = "Usuários", description = "Gestão de usuários da biblioteca e seus endereços")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "405", description = "Método HTTP não permitido para esta rota",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+        @ApiResponse(responseCode = "500", description = "Erro interno no servidor",
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+})
 public class UsuarioController {
 
     @Autowired
@@ -57,16 +63,7 @@ public class UsuarioController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuário encontrado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Usuário não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-30T10:00:00.000+00:00",
-                                      "status": 404,
-                                      "erro": "Não Encontrado",
-                                      "mensagem": "Usuário não encontrado com o ID: 99",
-                                      "caminho": "/usuarios/99"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Usuario> buscarPorId(
             @Parameter(description = "Identificador único do usuário", example = "1")
@@ -81,6 +78,8 @@ public class UsuarioController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Usuário cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: e-mail já cadastrado no sistema",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Usuario>> cadastrar(
@@ -118,32 +117,13 @@ public class UsuarioController {
             @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Usuário não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: e-mail já pertence a outro usuário",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Usuario> atualizar(
             @Parameter(description = "Identificador único do usuário", example = "1")
             @PathVariable Long id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Novos dados para atualização do usuário e endereço",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = Usuario.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "nome": "Maria Oliveira Santos",
-                                      "email": "maria.santos@email.com",
-                                      "telefone": "11988887777",
-                                      "dataNascimento": "1995-08-20",
-                                      "endereco": {
-                                        "logradouro": "Rua Augusta",
-                                        "numero": "500",
-                                        "complemento": "Bloco B",
-                                        "bairro": "Consolação",
-                                        "cidade": "São Paulo",
-                                        "estado": "SP",
-                                        "cep": "01305-000"
-                                      }
-                                    }
-                                    """)))
             @Valid @RequestBody Usuario usuario) {
 
         Usuario existente = usuarioRepository.findById(id)
