@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/autores")
-@Tag(name = "Autores", description = "Cadastro e gestão de criadores de obras literárias")
+@Tag(name = "Autores", description = "Gestão dos autores cadastrados na biblioteca")
 public class AutorController {
 
     @Autowired
@@ -37,7 +37,7 @@ public class AutorController {
     private AutorModelAssembler assembler;
 
     @GetMapping
-    @Operation(summary = "Listar autores", description = "Recupera uma lista paginada de todos os autores cadastrados.", operationId = "listarAutores")
+    @Operation(summary = "Listar autores", description = "Recupera uma lista paginada de todos os autores.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista de autores recuperada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Parâmetros de paginação inválidos",
@@ -52,33 +52,15 @@ public class AutorController {
         return ResponseEntity.ok(pagedModel);
     }
 
-    @GetMapping("/buscar")
-    @Operation(summary = "Buscar autores por nome", description = "Consulta personalizada que filtra autores pelo nome (busca parcial e case-insensitive).", operationId = "buscarAutoresPorNome")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
-    })
-    public ResponseEntity<PagedModel<EntityModel<Autor>>> buscarPorNome(
-            @Parameter(description = "Nome do autor para filtragem parcial", required = true, example = "Machado")
-            @RequestParam String nome,
-            @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
-
-        Page<Autor> page = autorRepository.findByNomeContainingIgnoreCase(nome, pageable);
-        PagedModel<EntityModel<Autor>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
-        return ResponseEntity.ok(pagedModel);
-    }
-
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar autor por ID", description = "Retorna os detalhes de um autor específico.", operationId = "buscarAutorPorId")
+    @Operation(summary = "Buscar autor por ID", description = "Retorna os detalhes de um autor específico.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Autor encontrado com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Autor localizado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Autor não localizado pelo ID informado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
                             examples = @ExampleObject(value = """
                                     {
-                                      "timestamp": "2026-10-13T18:45:00.000+00:00",
+                                      "timestamp": "2026-10-30T10:00:00.000+00:00",
                                       "status": 404,
                                       "erro": "Não Encontrado",
                                       "mensagem": "Autor não encontrado com o ID: 99",
@@ -95,7 +77,7 @@ public class AutorController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo autor", description = "Registra um novo autor no sistema.", operationId = "cadastrarAutor")
+    @Operation(summary = "Cadastrar novo autor", description = "Cadastra um novo autor no sistema.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Autor cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
@@ -103,7 +85,7 @@ public class AutorController {
     })
     public ResponseEntity<EntityModel<Autor>> cadastrar(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Dados para cadastro do autor",
+                    description = "Dados do autor para cadastro",
                     required = true,
                     content = @Content(schema = @Schema(implementation = Autor.class),
                             examples = @ExampleObject(value = """
@@ -119,7 +101,7 @@ public class AutorController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Atualizar autor existente", description = "Atualiza os dados de um autor cadastrado.", operationId = "atualizarAutor")
+    @Operation(summary = "Atualizar autor existente", description = "Atualiza os dados de um autor.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Autor atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
@@ -130,16 +112,6 @@ public class AutorController {
     public EntityModel<Autor> atualizar(
             @Parameter(description = "Identificador único do autor", example = "1")
             @PathVariable Long id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Novos dados para atualização do autor",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = Autor.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "nome": "Joaquim Maria Machado de Assis",
-                                      "nacionalidade": "Brasileira"
-                                    }
-                                    """)))
             @Valid @RequestBody Autor autor) {
 
         Autor existente = autorRepository.findById(id)
@@ -154,12 +126,10 @@ public class AutorController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Excluir autor", description = "Remove um autor do cadastro se não houver livros vinculados.", operationId = "excluirAutor")
+    @Operation(summary = "Excluir autor", description = "Remove um autor da base de dados.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Autor excluído com sucesso"),
             @ApiResponse(responseCode = "404", description = "Autor não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: autor possui livros vinculados",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(
