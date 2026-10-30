@@ -11,7 +11,10 @@ import java.util.List;
 
 @Repository
 public interface EmprestimoRepository extends JpaRepository<Emprestimo, Long> {
+
     Page<Emprestimo> findByStatus(StatusEmprestimo status, Pageable pageable);
+
     List<Emprestimo> findByLivroIdAndStatusIn(Long livroId, List<StatusEmprestimo> status);
-    Page<Emprestimo> findByUsuarioId(Long usuarioId, Pageable pageable);
+
+    List<Emprestimo> findByUsuarioId(Long usuarioId);
 }
