@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Livro - Painel Administrativo</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+
+<main class="content">
+    <div class="page-header">
+        <h1 id="titulo-pagina">Cadastrar Livro</h1>
+        <a href="livros.html" class="btn btn-secondary">Voltar</a>
+    </div>
+
+    <div class="card">
+        <form id="form-livro">
+            <input type="hidden" id="livro-id">
+
+            <h2>Informações do Livro</h2>
+            <div class="form-grid" style="margin-top: 1rem; margin-bottom: 2rem;">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="titulo">Título do Livro *</label>
+                    <input type="text" id="titulo" class="form-control" placeholder="Ex: Dom Casmurro" required maxlength="200">
+                </div>
+
+                <div class="form-group">
+                    <label for="isbn">ISBN *</label>
+                    <input type="text" id="isbn" class="form-control" placeholder="Ex: 9788535902778" required maxlength="13">
+                </div>
+
+                <div class="form-group">
+                    <label for="anoPublicacao">Ano de Publicação *</label>
+                    <input type="number" id="anoPublicacao" class="form-control" placeholder="Ex: 1899" required min="1000" max="2100">
+                </div>
+
+                <div class="form-group">
+                    <label for="quantidadeDisponivel">Quantidade Disponível *</label>
+                    <input type="number" id="quantidadeDisponivel" class="form-control" placeholder="Ex: 5" required min="0">
+                </div>
+            </div>
+
+            <h2>Dados do Autor</h2>
+            <div class="form-grid" style="margin-top: 1rem; margin-bottom: 1.5rem;">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label for="autorSelect">Ou Selecionar Autor Existente</label>
+                    <select id="autorSelect" class="form-control">
+                        <option value="">Selecione um autor existente...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-grid" style="background-color: #f9fafb; padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                <div class="form-group">
+                    <label for="nomeAutor">Nome do Novo Autor</label>
+                    <input type="text" id="nomeAutor" class="form-control" placeholder="Ex: Machado de Assis" maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="nacionalidadeAutor">Nacionalidade do Novo Autor</label>
+                    <input type="text" id="nacionalidadeAutor" class="form-control" placeholder="Ex: Brasileira" maxlength="255">
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; text-align: right;">
+                <button type="submit" class="btn btn-primary" id="btn-salvar">Salvar Livro</button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const livroId = urlParams.get('id');
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await carregarAutores();
+
+        // Se selecionar um autor na lista, limpa os campos de digitação de novo autor
+        document.getElementById('autorSelect').addEventListener('change', (e) => {
+            if (e.target.value) {
+                document.getElementById('nomeAutor').value = '';
+                document.getElementById('nacionalidadeAutor').value = '';
+            }
+        });
+
+        // Se digitar nos campos de novo autor, limpa a seleção do select
+        document.getElementById('nomeAutor').addEventListener('input', () => {
+            document.getElementById('autorSelect').value = '';
+        });
+        document.getElementById('nacionalidadeAutor').addEventListener('input', () => {
+            document.getElementById('autorSelect').value = '';
+        });
+
+        if (livroId) {
+            document.getElementById('titulo-pagina').textContent = 'Editar Livro';
+            document.getElementById('btn-salvar').textContent = 'Atualizar Livro';
+            await carregarDadosLivro(livroId);
+        }
+
+        document.getElementById('form-livro').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await salvarLivroComAutor();
+        });
+    });
+
+    async function carregarAutores() {
+        const select = document.getElementById('autorSelect');
+        try {
+            const data = await API.get('/autores');
+            const autores = data._embedded ? data._embedded.autorList : [];
+
+            select.innerHTML = '<option value="">Selecione um autor existente...</option>';
+            autores.forEach(autor => {
+                const option = document.createElement('option');
+                option.value = autor.id;
+                option.textContent = `${autor.nome} (${autor.nacionalidade || 'Nacionalidade não informada'})`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Erro ao carregar autores:', error);
+        }
+    }
+
+    async function carregarDadosLivro(id) {
+        try {
+            const livro = await API.get(`/livros/${id}`);
+            document.getElementById('livro-id').value = livro.id;
+            document.getElementById('titulo').value = livro.titulo;
+            document.getElementById('isbn').value = livro.isbn;
+            document.getElementById('anoPublicacao').value = livro.anoPublicacao;
+            document.getElementById('quantidadeDisponivel').value = livro.quantidadeDisponivel || 0;
+
+            if (livro.autores && livro.autores.length > 0) {
+                document.getElementById('autorSelect').value = livro.autores[0].id;
+            }
+        } catch (error) {
+            alert(`Erro ao carregar dados do livro:\n${error.message}`);
+            window.location.href = 'livros.html';
+        }
+    }
+
+    async function salvarLivroComAutor() {
+        const id = document.getElementById('livro-id').value;
+        let autorId = document.getElementById('autorSelect').value;
+        const nomeAutor = document.getElementById('nomeAutor').value.trim();
+        const nacionalidadeAutor = document.getElementById('nacionalidadeAutor').value.trim();
+
+        try {
+            // Se preencheu os campos de novo autor, cadastra o autor primeiro
+            if (nomeAutor) {
+                const novoAutorPayload = {
+                    nome: nomeAutor,
+                    nacionalidade: nacionalidadeAutor || 'Brasileira'
+                };
+                const autorCriado = await API.post('/autores', novoAutorPayload);
+                autorId = autorCriado.id;
+            }
+
+            if (!autorId) {
+                alert('Por favor, selecione um autor existente ou preencha o nome do novo autor.');
+                return;
+            }
+
+            const payloadLivro = {
+                titulo: document.getElementById('titulo').value.trim(),
+                isbn: document.getElementById('isbn').value.trim(),
+                anoPublicacao: parseInt(document.getElementById('anoPublicacao').value),
+                quantidadeDisponivel: parseInt(document.getElementById('quantidadeDisponivel').value),
+                autores: [{ id: parseInt(autorId) }]
+            };
+
+            if (id) {
+                await API.put(`/livros/${id}`, payloadLivro);
+                alert('Livro atualizado com sucesso!');
+            } else {
+                await API.post('/livros', payloadLivro);
+                alert('Livro e autor cadastrados com sucesso!');
+            }
+
+            window.location.href = 'livros.html';
+        } catch (error) {
+            alert(`Erro ao salvar:\n${error.message}`);
+        }
+    }
+</script>
+</body>
+</html>

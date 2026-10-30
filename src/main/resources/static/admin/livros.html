@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Livros - Painel Administrativo</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+
+<main class="content">
+    <div class="page-header">
+        <h1>Gestão de Livros</h1>
+        <a href="livro-form.html" class="btn btn-primary">Novo Livro</a>
+    </div>
+
+    <div class="card">
+        <h2>Livros Cadastrados</h2>
+        <div class="table-container" style="margin-top: 1rem;">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Título</th>
+                    <th>ISBN</th>
+                    <th>Ano</th>
+                    <th>Autor</th>
+                    <th>Qtd. Disponível</th>
+                    <th>Ações</th>
+                </tr>
+                </thead>
+                <tbody id="tabela-livros">
+                <tr>
+                    <td colspan="7" style="text-align: center;">Carregando livros...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarLivros();
+    });
+
+    async function carregarLivros() {
+        const tbody = document.getElementById('tabela-livros');
+        try {
+            const data = await API.get('/livros');
+            const livros = data._embedded ? data._embedded.livroList : [];
+
+            if (livros.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum livro cadastrado.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = livros.map(l => {
+                const autorNome = l.autor ? l.autor.nome : 'Autor Não Vinculado';
+                return `
+                        <tr>
+                            <td>${l.id}</td>
+                            <td><strong>${l.titulo}</strong></td>
+                            <td>${l.isbn || '-'}</td>
+                            <td>${l.anoPublicacao || '-'}</td>
+                            <td>${autorNome}</td>
+                            <td><strong>${l.quantidadeDisponivel}</strong></td>
+                            <td>
+                                <a href="livro-form.html?id=${l.id}" class="btn btn-primary btn-sm">Editar</a>
+                                <button onclick="excluirLivro(${l.id})" class="btn btn-danger btn-sm">Excluir</button>
+                            </td>
+                        </tr>
+                    `;
+            }).join('');
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger);">${error.message}</td></tr>`;
+        }
+    }
+
+    async function excluirLivro(id) {
+        if (!confirm(`Deseja realmente excluir o livro ID ${id}?`)) return;
+
+        try {
+            await API.delete(`/livros/${id}`);
+            alert('Livro excluído com sucesso!');
+            await carregarLivros();
+        } catch (error) {
+            alert(`Erro ao excluir livro:\n${error.message}`);
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endereços - Painel Administrativo</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+
+<main class="content">
+    <div class="page-header">
+        <div>
+            <h1>Endereços</h1>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Consulta de moradias cadastradas e vínculos com usuários</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Logradouro, Nº</th>
+                    <th>Bairro</th>
+                    <th>Cidade / UF</th>
+                    <th>CEP</th>
+                    <th>Usuário Vinculado</th>
+                    <th style="text-align: right;">Ações</th>
+                </tr>
+                </thead>
+                <tbody id="tabela-enderecos">
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Carregando endereços...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarEnderecosComUsuarios();
+    });
+
+    async function carregarEnderecosComUsuarios() {
+        const tbody = document.getElementById('tabela-enderecos');
+        try {
+            const [dataEnderecos, dataUsuarios] = await Promise.all([
+                API.get('/enderecos'),
+                API.get('/usuarios')
+            ]);
+
+            const enderecos = dataEnderecos._embedded ? dataEnderecos._embedded.enderecoList : [];
+            const usuarios = dataUsuarios._embedded ? dataUsuarios._embedded.usuarioList : [];
+
+            if (enderecos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Nenhum endereço cadastrado.</td></tr>';
+                return;
+            }
+
+            const mapaUsuariosPorEndereco = {};
+            usuarios.forEach(u => {
+                if (u.endereco && u.endereco.id) {
+                    mapaUsuariosPorEndereco[u.endereco.id] = u;
+                }
+            });
+
+            tbody.innerHTML = enderecos.map(end => {
+                const usuarioVinculado = mapaUsuariosPorEndereco[end.id];
+                const infoUsuario = usuarioVinculado
+                    ? `<a href="usuario-detalhe.html?id=${usuarioVinculado.id}" style="color: var(--primary); font-weight: 600; text-decoration: none;">${usuarioVinculado.nome}</a>`
+                    : '<span style="color: var(--text-muted);">Não vinculado</span>';
+
+                return `
+                        <tr>
+                            <td>${end.id}</td>
+                            <td><strong>${end.logradouro}, ${end.numero}</strong> ${end.complemento ? `(${end.complemento})` : ''}</td>
+                            <td>${end.bairro}</td>
+                            <td>${end.cidade} / ${end.estado}</td>
+                            <td>${end.cep}</td>
+                            <td>${infoUsuario}</td>
+                            <td style="text-align: right;">
+                                <button onclick="excluirEndereco(${end.id})" class="btn btn-danger btn-sm">Excluir</button>
+                            </td>
+                        </tr>
+                    `;
+            }).join('');
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger);">${error.message}</td></tr>`;
+        }
+    }
+
+    async function excluirEndereco(id) {
+        if (!confirm(`Deseja realmente excluir o endereço ID ${id}?`)) return;
+
+        try {
+            await API.delete(`/enderecos/${id}`);
+            alert('Endereço excluído com sucesso!');
+            await carregarEnderecosComUsuarios();
+        } catch (error) {
+            alert(`Erro ao excluir endereço:\n${error.message}`);
+        }
+    }
+</script>
+</body>
+</html>

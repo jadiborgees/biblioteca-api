@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Usuário - Painel Administrativo</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+
+<main class="content">
+    <div class="page-header">
+        <h1 id="titulo-pagina">Cadastrar Usuário e Endereço</h1>
+        <a href="usuarios.html" class="btn btn-secondary">Voltar</a>
+    </div>
+
+    <div class="card">
+        <form id="form-usuario">
+            <input type="hidden" id="usuario-id">
+            <input type="hidden" id="endereco-id">
+
+            <h2>Dados Pessoais</h2>
+            <div class="form-grid" style="margin-top: 1rem; margin-bottom: 2rem;">
+                <div class="form-group">
+                    <label for="nome">Nome Completo *</label>
+                    <input type="text" id="nome" class="form-control" placeholder="João Silva" required maxlength="100">
+                    <span class="error-text" id="erro-nome"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">E-mail *</label>
+                    <input type="email" id="email" class="form-control" placeholder="joao@email.com" required>
+                    <span class="error-text" id="erro-email"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="telefone">Telefone (com DDD) *</label>
+                    <input type="text" id="telefone" class="form-control" placeholder="(11) 99999-9999" required pattern="^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$" title="Digite um telefone válido com DDD (Ex: 11999999999)">
+                    <span class="error-text" id="erro-telefone"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="dataNascimento">Data de Nascimento *</label>
+                    <input type="date" id="dataNascimento" class="form-control" required>
+                    <span class="error-text" id="erro-dataNascimento"></span>
+                    <span class="error-text" id="erro-idadeValida"></span>
+                </div>
+            </div>
+
+            <h2>Endereço do Usuário</h2>
+            <div class="form-grid" style="margin-top: 1rem;">
+                <div class="form-group">
+                    <label for="cep">CEP *</label>
+                    <input type="text" id="cep" class="form-control" placeholder="00000-000" required maxlength="9">
+                    <span class="error-text" id="erro-cep"></span>
+                </div>
+                <div class="form-group">
+                    <label for="logradouro">Logradouro *</label>
+                    <input type="text" id="logradouro" class="form-control" placeholder="Rua, Avenida, etc." required>
+                    <span class="error-text" id="erro-logradouro"></span>
+                </div>
+                <div class="form-group">
+                    <label for="numero">Número *</label>
+                    <input type="text" id="numero" class="form-control" placeholder="123" required>
+                    <span class="error-text" id="erro-numero"></span>
+                </div>
+                <div class="form-group">
+                    <label for="complemento">Complemento</label>
+                    <input type="text" id="complemento" class="form-control" placeholder="Apto, Bloco, etc.">
+                    <span class="error-text" id="erro-complemento"></span>
+                </div>
+                <div class="form-group">
+                    <label for="bairro">Bairro *</label>
+                    <input type="text" id="bairro" class="form-control" placeholder="Centro" required>
+                    <span class="error-text" id="erro-bairro"></span>
+                </div>
+                <div class="form-group">
+                    <label for="cidade">Cidade *</label>
+                    <input type="text" id="cidade" class="form-control" placeholder="São Paulo" required>
+                    <span class="error-text" id="erro-cidade"></span>
+                </div>
+                <div class="form-group">
+                    <label for="estado">Estado (UF) *</label>
+                    <input type="text" id="estado" class="form-control" placeholder="SP" required maxlength="2">
+                    <span class="error-text" id="erro-estado"></span>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; text-align: right;">
+                <button type="submit" class="btn btn-primary" id="btn-salvar">Salvar Usuário e Endereço</button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const usuarioId = urlParams.get('id');
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const hoje = new Date();
+        const anoMax = hoje.getFullYear() - 18;
+        const anoMin = hoje.getFullYear() - 120;
+        const inputDataNasc = document.getElementById('dataNascimento');
+        inputDataNasc.max = `${anoMax}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+        inputDataNasc.min = `${anoMin}-01-01`;
+
+        const inputTelefone = document.getElementById('telefone');
+        inputTelefone.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.substring(0, 11);
+
+            if (value.length > 6) {
+                value = `(${value.substring(0, 2)}) ${value.substring(2, 7)}-${value.substring(7)}`;
+            } else if (value.length > 2) {
+                value = `(${value.substring(0, 2)}) ${value.substring(2)}`;
+            } else if (value.length > 0) {
+                value = `(${value}`;
+            }
+            e.target.value = value;
+        });
+
+        const inputCep = document.getElementById('cep');
+        inputCep.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 8) value = value.substring(0, 8);
+            if (value.length > 5) {
+                value = `${value.substring(0, 5)}-${value.substring(5)}`;
+            }
+            e.target.value = value;
+
+            if (value.replace(/\D/g, '').length === 8) {
+                consultarCep(value.replace(/\D/g, ''));
+            }
+        });
+
+        if (usuarioId) {
+            document.getElementById('titulo-pagina').textContent = 'Editar Usuário e Endereço';
+            document.getElementById('btn-salvar').textContent = 'Atualizar Usuário';
+            await carregarDadosUsuario(usuarioId);
+        }
+
+        document.getElementById('form-usuario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            limparErros();
+            await salvarUsuarioComEndereco();
+        });
+    });
+
+    async function consultarCep(cep) {
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const data = await response.json();
+
+            if (data.erro) {
+                alert('CEP não encontrado.');
+                return;
+            }
+
+            document.getElementById('logradouro').value = data.logradouro || '';
+            document.getElementById('bairro').value = data.bairro || '';
+            document.getElementById('cidade').value = data.localidade || '';
+            document.getElementById('estado').value = data.uf || '';
+            document.getElementById('numero').focus();
+        } catch (error) {
+            console.error('Erro ao consultar CEP:', error);
+        }
+    }
+
+    function limparErros() {
+        const spans = document.querySelectorAll('.error-text');
+        spans.forEach(span => span.textContent = '');
+    }
+
+    async function carregarDadosUsuario(id) {
+        try {
+            const usuario = await API.get(`/usuarios/${id}`);
+            document.getElementById('usuario-id').value = usuario.id;
+            document.getElementById('nome').value = usuario.nome;
+            document.getElementById('email').value = usuario.email;
+            document.getElementById('telefone').value = usuario.telefone;
+            document.getElementById('dataNascimento').value = usuario.dataNascimento;
+
+            if (usuario.endereco) {
+                document.getElementById('endereco-id').value = usuario.endereco.id;
+                document.getElementById('cep').value = usuario.endereco.cep || '';
+                document.getElementById('logradouro').value = usuario.endereco.logradouro || '';
+                document.getElementById('numero').value = usuario.endereco.numero || '';
+                document.getElementById('complemento').value = usuario.endereco.complemento || '';
+                document.getElementById('bairro').value = usuario.endereco.bairro || '';
+                document.getElementById('cidade').value = usuario.endereco.cidade || '';
+                document.getElementById('estado').value = usuario.endereco.estado || '';
+            }
+        } catch (error) {
+            alert(`Erro ao carregar dados do usuário:\n${error.message}`);
+            window.location.href = 'usuarios.html';
+        }
+    }
+
+    async function salvarUsuarioComEndereco() {
+        const id = document.getElementById('usuario-id').value;
+        const enderecoIdExistente = document.getElementById('endereco-id').value;
+        const telefoneBruto = document.getElementById('telefone').value.replace(/\D/g, '');
+        const cepBruto = document.getElementById('cep').value.replace(/\D/g, '');
+
+        const enderecoPayload = {
+            cep: cepBruto,
+            logradouro: document.getElementById('logradouro').value.trim(),
+            numero: document.getElementById('numero').value.trim(),
+            complemento: document.getElementById('complemento').value.trim() || null,
+            bairro: document.getElementById('bairro').value.trim(),
+            cidade: document.getElementById('cidade').value.trim(),
+            estado: document.getElementById('estado').value.trim().toUpperCase()
+        };
+
+        try {
+            let enderecoSalvoId = enderecoIdExistente;
+
+            if (id) {
+                // Se for edição, atualiza o endereço existente se houver ID
+                if (enderecoSalvoId) {
+                    await API.put(`/enderecos/${enderecoSalvoId}`, enderecoPayload);
+                } else {
+                    const novoEnd = await API.post('/enderecos', enderecoPayload);
+                    enderecoSalvoId = novoEnd.id;
+                }
+
+                const payloadUsuario = {
+                    nome: document.getElementById('nome').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    telefone: telefoneBruto,
+                    dataNascimento: document.getElementById('dataNascimento').value,
+                    endereco: { id: parseInt(enderecoSalvoId) }
+                };
+
+                await API.put(`/usuarios/${id}`, payloadUsuario);
+                alert('Usuário e endereço atualizados com sucesso!');
+            } else {
+                // Se for novo cadastro, cria o endereço primeiro para obter o ID
+                const novoEnd = await API.post('/enderecos', enderecoPayload);
+                enderecoSalvoId = novoEnd.id;
+
+                const payloadUsuario = {
+                    nome: document.getElementById('nome').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    telefone: telefoneBruto,
+                    dataNascimento: document.getElementById('dataNascimento').value,
+                    endereco: { id: parseInt(enderecoSalvoId) }
+                };
+
+                await API.post('/usuarios', payloadUsuario);
+                alert('Usuário e endereço cadastrados com sucesso!');
+            }
+
+            window.location.href = 'usuarios.html';
+        } catch (error) {
+            const mensagem = error.message || '';
+            const linhas = mensagem.split('\n');
+            let erroGeral = true;
+
+            linhas.forEach(linha => {
+                const partes = linha.split(':');
+                if (partes.length >= 2) {
+                    const campo = partes[0].replace(/[-•]/g, '').trim();
+                    const msgErro = partes.slice(1).join(':').trim();
+                    const spanErro = document.getElementById(`erro-${campo}`);
+                    if (spanErro) {
+                        spanErro.textContent = msgErro;
+                        erroGeral = false;
+                    }
+                }
+            });
+
+            if (erroGeral) {
+                alert(`Erro ao salvar:\n${mensagem}`);
+            }
+        }
+    }
+</script>
+</body>
+</html>

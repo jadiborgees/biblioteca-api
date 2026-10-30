@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Autores - Painel Administrativo</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+
+<main class="content">
+    <div class="page-header">
+        <div>
+            <h1>Autores Cadastrados</h1>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">Consulta de autores e livros vinculados</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome do Autor</th>
+                    <th>Nacionalidade</th>
+                    <th>Livros Vinculados</th>
+                    <th style="text-align: right;">Ações</th>
+                </tr>
+                </thead>
+                <tbody id="tabela-autores">
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted);">Carregando autores...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarAutoresComLivros();
+    });
+
+    async function carregarAutoresComLivros() {
+        const tbody = document.getElementById('tabela-autores');
+        try {
+            const [dataAutores, dataLivros] = await Promise.all([
+                API.get('/autores'),
+                API.get('/livros')
+            ]);
+
+            const autores = dataAutores._embedded ? dataAutores._embedded.autorList : [];
+            const livros = dataLivros._embedded ? dataLivros._embedded.livroList : [];
+
+            if (autores.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Nenhum autor cadastrado.</td></tr>';
+                return;
+            }
+
+            // Mapeia quais livros pertencem a cada autor
+            const livrosPorAutor = {};
+            livros.forEach(livro => {
+                if (livro.autores) {
+                    livro.autores.forEach(aut => {
+                        if (!livrosPorAutor[aut.id]) {
+                            livrosPorAutor[aut.id] = [];
+                        }
+                        livrosPorAutor[aut.id].push(livro.titulo);
+                    });
+                }
+            });
+
+            tbody.innerHTML = autores.map(autor => {
+                const titulosLivros = livrosPorAutor[autor.id] || [];
+                const listaLivrosHtml = titulosLivros.length > 0
+                    ? titulosLivros.map(t => `<span style="display: inline-block; background: var(--bg-main); padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin: 2px;">${t}</span>`).join('')
+                    : '<span style="color: var(--text-muted);">Nenhum livro vinculado</span>';
+
+                return `
+                        <tr>
+                            <td>${autor.id}</td>
+                            <td><strong>${autor.nome}</strong></td>
+                            <td>${autor.nacionalidade || 'Não informada'}</td>
+                            <td>${listaLivrosHtml}</td>
+                            <td style="text-align: right;">
+                                <button onclick="excluirAutor(${autor.id})" class="btn btn-danger btn-sm">Excluir</button>
+                            </td>
+                        </tr>
+                    `;
+            }).join('');
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger);">${error.message}</td></tr>`;
+        }
+    }
+
+    async function excluirAutor(id) {
+        if (!confirm(`Deseja realmente excluir o autor ID ${id}?`)) return;
+
+        try {
+            await API.delete(`/autores/${id}`);
+            alert('Autor excluído com sucesso!');
+            await carregarAutoresComLivros();
+        } catch (error) {
+            alert(`Erro ao excluir autor:\n${error.message}`);
+        }
+    }
+</script>
+</body>
+</html>

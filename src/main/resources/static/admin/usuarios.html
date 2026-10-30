@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Usuários - Painel Administrativo</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div id="sidebar-container"></div>
+
+<main class="content">
+    <div class="page-header">
+        <h1>Gestão de Usuários</h1>
+        <a href="usuario-form.html" class="btn btn-primary">Novo Usuário</a>
+    </div>
+
+    <div class="card">
+        <h2>Usuários Cadastrados</h2>
+        <div class="table-container" style="margin-top: 1rem;">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>E-mail</th>
+                    <th>Telefone</th>
+                    <th>Data de Nasc.</th>
+                    <th>Ações</th>
+                </tr>
+                </thead>
+                <tbody id="tabela-usuarios">
+                <tr>
+                    <td colspan="6" style="text-align: center;">Carregando usuários...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script src="js/api.js"></script>
+<script src="js/layout.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarUsuarios();
+    });
+
+    async function carregarUsuarios() {
+        const tbody = document.getElementById('tabela-usuarios');
+        try {
+            const data = await API.get('/usuarios');
+            const usuarios = data._embedded ? data._embedded.usuarioList : [];
+
+            if (usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum usuário cadastrado.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = usuarios.map(u => {
+                const dataNasc = u.dataNascimento ? u.dataNascimento.split('-').reverse().join('/') : '-';
+                return `
+                        <tr>
+                            <td>${u.id}</td>
+                            <td><strong>${u.nome}</strong></td>
+                            <td>${u.email}</td>
+                            <td>${u.telefone}</td>
+                            <td>${dataNasc}</td>
+                            <td>
+                                <a href="usuario-detalhe.html?id=${u.id}" class="btn btn-secondary btn-sm">Detalhes</a>
+                                <a href="usuario-form.html?id=${u.id}" class="btn btn-primary btn-sm">Editar</a>
+                                <button onclick="excluirUsuario(${u.id})" class="btn btn-danger btn-sm">Excluir</button>
+                            </td>
+                        </tr>
+                    `;
+            }).join('');
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger);">${error.message}</td></tr>`;
+        }
+    }
+
+    async function excluirUsuario(id) {
+        if (!confirm(`Deseja realmente excluir o usuário ID ${id}?`)) return;
+
+        try {
+            await API.delete(`/usuarios/${id}`);
+            alert('Usuário excluído com sucesso!');
+            await carregarUsuarios();
+        } catch (error) {
+            alert(`Erro ao excluir usuário:\n${error.message}`);
+        }
+    }
+</script>
+</body>
+</html>
