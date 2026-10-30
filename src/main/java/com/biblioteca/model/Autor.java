@@ -12,22 +12,14 @@ public class Autor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "O nome é obrigatório")
-    @Size(min = 2, max = 100, message = "O nome deve ter entre 2 e 100 caracteres")
+    @NotBlank(message = "O nome do autor é obrigatório.")
+    @Size(min = 2, max = 100, message = "O nome do autor deve ter entre 2 e 100 caracteres.")
     private String nome;
 
     private String nacionalidade;
 
-    // Construtores
     public Autor() {}
 
-    public Autor(Long id, String nome, String nacionalidade) {
-        this.id = id;
-        this.nome = nome;
-        this.nacionalidade = nacionalidade;
-    }
-
-    // Getters e Setters
     public Long getId() {
         return id;
     }
