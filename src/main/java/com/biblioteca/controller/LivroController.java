@@ -61,21 +61,30 @@ public class LivroController {
         return ResponseEntity.ok(pagedModel);
     }
 
+    @GetMapping("/buscar")
+    @Operation(summary = "Buscar livros por título", description = "Consulta personalizada que busca livros contendo o termo informado no título.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+    })
+    public ResponseEntity<PagedModel<EntityModel<Livro>>> buscarPorTitulo(
+            @Parameter(description = "Termo ou título a ser pesquisado", required = true, example = "Dom")
+            @RequestParam String titulo,
+            @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
+
+        Page<Livro> page = livroRepository.findByTituloContainingIgnoreCase(titulo, pageable);
+        PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Buscar livro por ID", description = "Retorna os detalhes de um livro específico pelo seu identificador.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Livro localizado com sucesso"),
             @ApiResponse(responseCode = "404", description = "Livro não localizado pelo ID informado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "timestamp": "2026-10-30T10:00:00.000+00:00",
-                                      "status": 404,
-                                      "erro": "Não Encontrado",
-                                      "mensagem": "Livro não encontrado com o ID: 99",
-                                      "caminho": "/livros/99"
-                                    }
-                                    """)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Livro> buscarPorId(
             @Parameter(description = "Identificador único do livro", example = "1")
@@ -89,9 +98,9 @@ public class LivroController {
     @Operation(summary = "Cadastrar novo livro", description = "Cadastra um novo livro no acervo associando autores existentes.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Livro cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos, ISBN incorreto ou ano de publicação futuro",
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou ISBN incorreto",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: ISBN já cadastrado no sistema",
+            @ApiResponse(responseCode = "409", description = "Conflito: ISBN já cadastrado ou ano de publicação futuro",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Livro>> cadastrar(
@@ -123,11 +132,11 @@ public class LivroController {
     @Operation(summary = "Atualizar livro existente", description = "Atualiza os dados de um livro cadastrado.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Livro atualizado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos ou ano de publicação futuro",
+            @ApiResponse(responseCode = "400", description = "Dados de atualização inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Livro não localizado pelo ID informado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: ISBN informado já pertence a outro livro",
+            @ApiResponse(responseCode = "409", description = "Conflito: ISBN informado pertence a outro livro ou ano de publicação futuro",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Livro> atualizar(
@@ -159,6 +168,8 @@ public class LivroController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Livro excluído com sucesso"),
             @ApiResponse(responseCode = "404", description = "Livro não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito de integridade: não é possível excluir livro vinculado a empréstimos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(

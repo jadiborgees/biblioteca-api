@@ -58,6 +58,24 @@ public class UsuarioController {
         return ResponseEntity.ok(pagedModel);
     }
 
+    @GetMapping("/buscar")
+    @Operation(summary = "Buscar usuários por nome", description = "Consulta personalizada que filtra usuários pelo nome contendo o termo pesquisado.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+    })
+    public ResponseEntity<PagedModel<EntityModel<Usuario>>> buscarPorNome(
+            @Parameter(description = "Nome do usuário para busca", required = true, example = "Maria")
+            @RequestParam String nome,
+            @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
+
+        Page<Usuario> page = usuarioRepository.findByNomeContainingIgnoreCase(nome, pageable);
+        PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Buscar usuário por ID", description = "Retorna os detalhes de um usuário específico juntamente com seu endereço.", operationId = "buscarUsuarioPorId")
     @ApiResponses(value = {
@@ -148,6 +166,8 @@ public class UsuarioController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Usuário excluído com sucesso"),
             @ApiResponse(responseCode = "404", description = "Usuário não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito de integridade: não é possível excluir usuário com empréstimos vinculados",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(

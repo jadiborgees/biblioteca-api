@@ -1,6 +1,7 @@
 package com.biblioteca.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -8,30 +9,31 @@ import java.util.Map;
 public class ErroResponse {
 
     private LocalDateTime timestamp;
-    private int status;
+    private Integer status;
     private String erro;
     private String mensagem;
     private String caminho;
-    private Map<String, String> campos; // Útil para erros de validação (@Valid)
+    private Map<String, String> campos;
 
-    public ErroResponse() {
-        this.timestamp = LocalDateTime.now();
-    }
+    public ErroResponse() {}
 
-    public ErroResponse(int status, String erro, String mensagem, String caminho) {
-        this();
+    public ErroResponse(LocalDateTime timestamp, Integer status, String erro, String mensagem, String caminho) {
+        this.timestamp = timestamp;
         this.status = status;
         this.erro = erro;
         this.mensagem = mensagem;
         this.caminho = caminho;
     }
 
-    public ErroResponse(int status, String erro, String mensagem, String caminho, Map<String, String> campos) {
-        this(status, erro, mensagem, caminho);
+    public ErroResponse(LocalDateTime timestamp, Integer status, String erro, String mensagem, String caminho, Map<String, String> campos) {
+        this.timestamp = timestamp;
+        this.status = status;
+        this.erro = erro;
+        this.mensagem = mensagem;
+        this.caminho = caminho;
         this.campos = campos;
     }
 
-    // Getters e Setters
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
@@ -40,11 +42,11 @@ public class ErroResponse {
         this.timestamp = timestamp;
     }
 
-    public int getStatus() {
+    public Integer getStatus() {
         return status;
     }
 
-    public void setStatus(int status) {
+    public void setStatus(Integer status) {
         this.status = status;
     }
 

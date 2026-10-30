@@ -58,6 +58,24 @@ public class EnderecoController {
         return ResponseEntity.ok(pagedModel);
     }
 
+    @GetMapping("/buscar")
+    @Operation(summary = "Buscar endereços por cidade", description = "Consulta personalizada que busca endereços cadastrados em uma determinada cidade.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+    })
+    public ResponseEntity<PagedModel<EntityModel<Endereco>>> buscarPorCidade(
+            @Parameter(description = "Nome da cidade para pesquisa", required = true, example = "São Paulo")
+            @RequestParam String cidade,
+            @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
+
+        Page<Endereco> page = enderecoRepository.findByCidadeContainingIgnoreCase(cidade, pageable);
+        PagedModel<EntityModel<Endereco>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Buscar endereço por ID", description = "Retorna os detalhes de um endereço específico.")
     @ApiResponses(value = {
@@ -137,6 +155,8 @@ public class EnderecoController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Endereço excluído com sucesso"),
             @ApiResponse(responseCode = "404", description = "Endereço não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito de integridade: não é possível excluir endereço associado a um usuário",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(

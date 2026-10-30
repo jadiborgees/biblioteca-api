@@ -107,11 +107,11 @@ public class EmprestimoController {
     @Operation(summary = "Cadastrar novo empréstimo", description = "Registra um novo empréstimo vinculando usuário e livro válidos. Impede novo empréstimo caso o livro já esteja ativo.", operationId = "cadastrarEmprestimo")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Empréstimo cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou datas inconsistentes",
+            @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Usuário ou Livro não localizado pelo ID informado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: este livro já se encontra emprestado",
+            @ApiResponse(responseCode = "409", description = "Conflito de Regra de Negócio: este livro já está emprestado ou a data de devolução é anterior ao empréstimo",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
@@ -175,7 +175,7 @@ public class EmprestimoController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Empréstimo, Usuário ou Livro não localizado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: alteração gera duplicidade ou conflito de regra",
+            @ApiResponse(responseCode = "409", description = "Conflito de Regra de Negócio: datas inconsistentes ou alteração inválida",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public EntityModel<Emprestimo> atualizar(

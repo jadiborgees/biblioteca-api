@@ -18,7 +18,10 @@ public class Livro {
     private String titulo;
 
     @NotBlank(message = "O ISBN é obrigatório.")
-    @Pattern(regexp = "^(?:\\d{9}[\\dX]|\\d{13})$", message = "O ISBN deve ter 10 ou 13 dígitos numéricos.")
+    @Pattern(
+            regexp = "^(?:\\d{9}[\\dX]|\\d{13})$",
+            message = "O ISBN deve ter 13 dígitos numéricos ou 10 caracteres (aceitando 'X' no último dígito)."
+    )
     @Column(unique = true)
     private String isbn;
 
@@ -37,14 +40,43 @@ public class Livro {
 
     public Livro() {}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getTitulo() { return titulo; }
-    public void setTitulo(String titulo) { this.titulo = titulo; }
-    public String getIsbn() { return isbn; }
-    public void setIsbn(String isbn) { this.isbn = isbn; }
-    public Integer getAnoPublicacao() { return anoPublicacao; }
-    public void setAnoPublicacao(Integer anoPublicacao) { this.anoPublicacao = anoPublicacao; }
-    public Set<Autor> getAutores() { return autores; }
-    public void setAutores(Set<Autor> autores) { this.autores = autores; }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getTitulo() {
+        return titulo;
+    }
+
+    public void setTitulo(String titulo) {
+        this.titulo = titulo;
+    }
+
+    public String getIsbn() {
+        return isbn;
+    }
+
+    public void setIsbn(String isbn) {
+        this.isbn = isbn;
+    }
+
+    public Integer getAnoPublicacao() {
+        return anoPublicacao;
+    }
+
+    public void setAnoPublicacao(Integer anoPublicacao) {
+        this.anoPublicacao = anoPublicacao;
+    }
+
+    public Set<Autor> getAutores() {
+        return autores;
+    }
+
+    public void setAutores(Set<Autor> autores) {
+        this.autores = autores;
+    }
 }

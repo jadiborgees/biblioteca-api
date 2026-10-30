@@ -58,6 +58,24 @@ public class AutorController {
         return ResponseEntity.ok(pagedModel);
     }
 
+    @GetMapping("/buscar")
+    @Operation(summary = "Buscar autores por nome", description = "Consulta personalizada que busca autores pelo nome contendo o termo informado.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Busca realizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Parâmetros de busca ou paginação inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
+    })
+    public ResponseEntity<PagedModel<EntityModel<Autor>>> buscarPorNome(
+            @Parameter(description = "Nome do autor para busca", required = true, example = "Machado")
+            @RequestParam String nome,
+            @ParameterObject Pageable pageable,
+            PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
+
+        Page<Autor> page = autorRepository.findByNomeContainingIgnoreCase(nome, pageable);
+        PagedModel<EntityModel<Autor>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
+        return ResponseEntity.ok(pagedModel);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Buscar autor por ID", description = "Retorna os detalhes de um autor específico.")
     @ApiResponses(value = {
@@ -127,6 +145,8 @@ public class AutorController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Autor excluído com sucesso"),
             @ApiResponse(responseCode = "404", description = "Autor não localizado pelo ID informado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito de integridade: não é possível excluir autor vinculado a livros cadastrados",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public void excluir(
