@@ -121,7 +121,7 @@ Para otimizar o tráfego de dados, as listagens gerais utilizam paginação padr
 
 ---
 
-### Ordem Lógica de Teardown (Exclusão / LIFO)
+### Ordem Lógica Exclusão
 
 Para testes manuais que respeitem as restrições de chave estrangeira ao apagar registos, elimine na ordem inversa da criação:
 1. `DELETE /emprestimos/{id}`
