@@ -1,5 +1,6 @@
-package com.biblioteca;
+package com.biblioteca.repository;
 
+import com.biblioteca.model.ApiKey;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

@@ -1,4 +1,4 @@
-package com.biblioteca;
+package com.biblioteca.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

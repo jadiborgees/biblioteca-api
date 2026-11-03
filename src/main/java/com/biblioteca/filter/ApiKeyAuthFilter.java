@@ -1,5 +1,7 @@
-package com.biblioteca;
+package com.biblioteca.filter;
 
+import com.biblioteca.controller.ApiKeyController;
+import com.biblioteca.repository.ApiKeyRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

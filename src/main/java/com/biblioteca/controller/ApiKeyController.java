@@ -1,5 +1,7 @@
-package com.biblioteca;
+package com.biblioteca.controller;
 
+import com.biblioteca.model.ApiKey;
+import com.biblioteca.repository.ApiKeyRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
