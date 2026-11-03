@@ -51,7 +51,7 @@ public class UsuarioController {
     })
     public ResponseEntity<PagedModel<EntityModel<Usuario>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
         Page<Usuario> page = usuarioRepository.findAll(pageable);
         PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -69,7 +69,7 @@ public class UsuarioController {
             @Parameter(description = "Nome do usuário para busca", required = true, example = "Maria")
             @RequestParam String nome,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
         Page<Usuario> page = usuarioRepository.findByNomeContainingIgnoreCase(nome, pageable);
         PagedModel<EntityModel<Usuario>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -92,12 +92,14 @@ public class UsuarioController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo usuário", description = "Cadastra um novo usuário juntamente com seu endereço residencial em cascata.")
+    @Operation(summary = "Cadastrar novo usuário", description = "Cadastra um novo usuário juntamente com seu endereço residencial em cascata com suporte a Idempotência (X-Idempotency-Key).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Usuário cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: e-mail já cadastrado no sistema",
+            @ApiResponse(responseCode = "409", description = "Conflito: Requisito de idempotência violado (payload divergente para a mesma chave X-Idempotency-Key) ou e-mail já cadastrado no sistema",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "422", description = "Entidade Não Processável: Payload malformado ou dados inconsistentes para requisição idempotente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Usuario>> cadastrar(

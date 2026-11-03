@@ -1,6 +1,7 @@
 package com.biblioteca.controller;
 
 import com.biblioteca.assembler.LivroModelAssembler;
+import com.biblioteca.dto.LivroV2DTO;
 import com.biblioteca.exception.ErroResponse;
 import com.biblioteca.exception.LivroNotFoundException;
 import com.biblioteca.exception.RegraNegocioException;
@@ -8,6 +9,7 @@ import com.biblioteca.model.Livro;
 import com.biblioteca.repository.LivroRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,6 +29,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/livros")
@@ -45,20 +48,42 @@ public class LivroController {
     @Autowired
     private LivroModelAssembler assembler;
 
-    @GetMapping
-    @Operation(summary = "Listar livros", description = "Recupera uma lista paginada de todos os livros do acervo.")
+    // --- VERSIONAMENTO: Versão 1 (Padrão: quando X-API-Version não é informado ou é diferente de 2) ---
+    @GetMapping(headers = "!X-API-Version=2")
+    @Operation(summary = "Listar livros (v1)", description = "Recupera uma lista paginada de todos os livros do acervo no formato padrão HATEOAS (Versão 1).")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Lista de livros recuperada com sucesso"),
+            @ApiResponse(responseCode = "200", description = "Lista de livros recuperada com sucesso",
+                    headers = @Header(name = "X-API-Version", description = "Versão da API utilizada", schema = @Schema(type = "string"))),
             @ApiResponse(responseCode = "400", description = "Parâmetros de paginação inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<PagedModel<EntityModel<Livro>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
         Page<Livro> page = livroRepository.findAll(pageable);
         PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
-        return ResponseEntity.ok(pagedModel);
+        return ResponseEntity.ok()
+                .header("X-API-Version", "1.0")
+                .body(pagedModel);
+    }
+
+    // --- VERSIONAMENTO: Versão 2 (Acionada quando X-API-Version=2 é enviado no cabeçalho) ---
+    @GetMapping(headers = "X-API-Version=2")
+    @Operation(summary = "Listar livros (v2)", description = "Recupera a lista de livros utilizando a estrutura estendida DTO (Versão 2).")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de livros v2 recuperada com sucesso",
+                    headers = @Header(name = "X-API-Version", description = "Versão da API utilizada", schema = @Schema(type = "string")))
+    })
+    public ResponseEntity<List<LivroV2DTO>> listarV2() {
+        List<LivroV2DTO> livrosV2 = livroRepository.findAll()
+                .stream()
+                .map(livro -> new LivroV2DTO(livro, "v2.0 - Resposta estendida com metadados"))
+                .toList();
+
+        return ResponseEntity.ok()
+                .header("X-API-Version", "2.0")
+                .body(livrosV2);
     }
 
     @GetMapping("/buscar")
@@ -72,7 +97,7 @@ public class LivroController {
             @Parameter(description = "Termo ou título a ser pesquisado", required = true, example = "Dom")
             @RequestParam String titulo,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
         Page<Livro> page = livroRepository.findByTituloContainingIgnoreCase(titulo, pageable);
         PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -95,12 +120,14 @@ public class LivroController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo livro", description = "Cadastra um novo livro no acervo associando autores existentes.")
+    @Operation(summary = "Cadastrar novo livro", description = "Cadastra um novo livro no acervo associando autores existentes com suporte a Idempotência (X-Idempotency-Key).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Livro cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou ISBN incorreto",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito: ISBN já cadastrado ou ano de publicação futuro",
+            @ApiResponse(responseCode = "409", description = "Conflito: Requisito de idempotência violado (payload divergente para a mesma chave X-Idempotency-Key) ou ano de publicação futuro/ISBN duplicado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "422", description = "Entidade Não Processável: Payload malformado ou dados inconsistentes para requisição idempotente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Livro>> cadastrar(

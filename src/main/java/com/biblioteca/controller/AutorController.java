@@ -51,7 +51,7 @@ public class AutorController {
     })
     public ResponseEntity<PagedModel<EntityModel<Autor>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
 
         Page<Autor> page = autorRepository.findAll(pageable);
         PagedModel<EntityModel<Autor>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -69,7 +69,7 @@ public class AutorController {
             @Parameter(description = "Nome do autor para busca", required = true, example = "Machado")
             @RequestParam String nome,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
 
         Page<Autor> page = autorRepository.findByNomeContainingIgnoreCase(nome, pageable);
         PagedModel<EntityModel<Autor>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -92,10 +92,14 @@ public class AutorController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo autor", description = "Cadastra um novo autor no sistema.")
+    @Operation(summary = "Cadastrar novo autor", description = "Cadastra um novo autor no sistema com suporte a idempotência.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Autor cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: Requisito de idempotência violado (payload divergente para a mesma chave X-Idempotency-Key) ou autor já existente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "422", description = "Entidade Não Processável: Payload malformado ou dados inconsistentes para requisição idempotente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Autor>> cadastrar(

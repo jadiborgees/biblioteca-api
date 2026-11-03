@@ -51,7 +51,7 @@ public class EnderecoController {
     })
     public ResponseEntity<PagedModel<EntityModel<Endereco>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
 
         Page<Endereco> page = enderecoRepository.findAll(pageable);
         PagedModel<EntityModel<Endereco>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -69,7 +69,7 @@ public class EnderecoController {
             @Parameter(description = "Nome da cidade para pesquisa", required = true, example = "São Paulo")
             @RequestParam String cidade,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
 
         Page<Endereco> page = enderecoRepository.findByCidadeContainingIgnoreCase(cidade, pageable);
         PagedModel<EntityModel<Endereco>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -92,10 +92,14 @@ public class EnderecoController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo endereço", description = "Cadastra um novo endereço no sistema.")
+    @Operation(summary = "Cadastrar novo endereço", description = "Cadastra um novo endereço no sistema com suporte a Idempotência (X-Idempotency-Key).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Endereço cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos ou CEP fora do padrão",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Conflito: Requisito de idempotência violado (payload divergente para a mesma chave X-Idempotency-Key)",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "422", description = "Entidade Não Processável: Payload malformado ou dados inconsistentes para requisição idempotente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Endereco>> cadastrar(

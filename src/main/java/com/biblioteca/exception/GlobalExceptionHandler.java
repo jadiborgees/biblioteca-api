@@ -37,6 +37,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
     }
 
+    @ExceptionHandler(LivroNotFoundException.class)
+    public ResponseEntity<ErroResponse> handleLivroNotFoundException(
+            LivroNotFoundException ex, HttpServletRequest request) {
+
+        ErroResponse erro = new ErroResponse(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                "Recurso Não Encontrado",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(erro);
+    }
+
     @ExceptionHandler(RegraNegocioException.class)
     public ResponseEntity<ErroResponse> handleRegraNegocioException(
             RegraNegocioException ex, HttpServletRequest request) {

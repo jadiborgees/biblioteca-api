@@ -63,7 +63,7 @@ public class EmprestimoController {
     })
     public ResponseEntity<PagedModel<EntityModel<Emprestimo>>> listar(
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
 
         Page<Emprestimo> page = emprestimoRepository.findAll(pageable);
         PagedModel<EntityModel<Emprestimo>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -81,7 +81,7 @@ public class EmprestimoController {
             @Parameter(description = "Status do empréstimo", required = true, example = "ATIVO")
             @RequestParam StatusEmprestimo status,
             @ParameterObject Pageable pageable,
-            PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Emprestimo> pagedResourcesAssembler) {
 
         Page<Emprestimo> page = emprestimoRepository.findByStatus(status, pageable);
         PagedModel<EntityModel<Emprestimo>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -104,14 +104,16 @@ public class EmprestimoController {
     }
 
     @PostMapping
-    @Operation(summary = "Cadastrar novo empréstimo", description = "Registra um novo empréstimo vinculando usuário e livro válidos. Impede novo empréstimo caso o livro já esteja ativo.", operationId = "cadastrarEmprestimo")
+    @Operation(summary = "Cadastrar novo empréstimo", description = "Registra um novo empréstimo vinculando usuário e livro válidos com suporte a Idempotência (X-Idempotency-Key). Impede novo empréstimo caso o livro já esteja ativo.", operationId = "cadastrarEmprestimo")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Empréstimo cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
             @ApiResponse(responseCode = "404", description = "Usuário ou Livro não localizado pelo ID informado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Conflito de Regra de Negócio: este livro já está emprestado ou a data de devolução é anterior ao empréstimo",
+            @ApiResponse(responseCode = "409", description = "Conflito: Requisito de idempotência violado (payload divergente para a mesma chave X-Idempotency-Key) ou livro já emprestado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class))),
+            @ApiResponse(responseCode = "422", description = "Entidade Não Processável: Payload malformado ou dados inconsistentes para requisição idempotente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErroResponse.class)))
     })
     public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
