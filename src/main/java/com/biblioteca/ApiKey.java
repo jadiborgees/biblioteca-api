@@ -4,36 +4,62 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_api_key")
+@Table(name = "api_keys")
 public class ApiKey {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "chave", nullable = false, unique = true)
-    private String key;
+    @Column(nullable = false, unique = true)
+    private String keyHash; // Salva o HASH da chave em vez do texto puro
 
     @Column(nullable = false)
-    private String usuario;
+    private String clientName;
 
-    private boolean ativa = true;
+    @Column(nullable = false)
+    private boolean active = true;
 
-    private LocalDateTime dataCriacao = LocalDateTime.now();
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     public ApiKey() {}
 
-    public ApiKey(String key, String usuario) {
-        this.key = key;
-        this.usuario = usuario;
+    public ApiKey(String keyHash, String clientName) {
+        this.keyHash = keyHash;
+        this.clientName = clientName;
+        this.active = true;
+        this.createdAt = LocalDateTime.now();
     }
 
-    public Long getId() { return id; }
-    public String getKey() { return key; }
-    public void setKey(String key) { this.key = key; }
-    public String getUsuario() { return usuario; }
-    public void setUsuario(String usuario) { this.usuario = usuario; }
-    public boolean isAtiva() { return ativa; }
-    public void setAtiva(boolean ativa) { this.ativa = ativa; }
-    public LocalDateTime getDataCriacao() { return dataCriacao; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getKeyHash() {
+        return keyHash;
+    }
+
+    public void setKeyHash(String keyHash) {
+        this.keyHash = keyHash;
+    }
+
+    public String getClientName() {
+        return clientName;
+    }
+
+    public void setClientName(String clientName) {
+        this.clientName = clientName;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

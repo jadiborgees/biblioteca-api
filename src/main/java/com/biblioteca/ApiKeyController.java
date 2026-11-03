@@ -4,7 +4,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -18,26 +22,30 @@ public class ApiKeyController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiKey> gerarKey(@RequestParam String usuario) {
-        String newKey = "bib-" + UUID.randomUUID().toString().replace("-", "");
-        ApiKey apiKey = new ApiKey(newKey, usuario);
-        ApiKey salva = apiKeyRepository.save(apiKey);
-        return ResponseEntity.status(HttpStatus.CREATED).body(salva);
+    public ResponseEntity<?> generateKey(@RequestBody(required = false) Map<String, String> request) {
+        String clientName = (request != null && request.containsKey("clientName"))
+                ? request.get("clientName")
+                : "Cliente Anonimo";
+
+        String rawKey = "key_" + UUID.randomUUID().toString().replace("-", "");
+        String keyHash = hashKey(rawKey);
+
+        ApiKey apiKey = new ApiKey(keyHash, clientName);
+        apiKeyRepository.save(apiKey);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "apiKey", rawKey,
+                "mensagem", "Guarde esta chave em um local seguro. Ela não poderá ser exibida novamente."
+        ));
     }
 
-    @GetMapping
-    public ResponseEntity<List<ApiKey>> listarKeys() {
-        return ResponseEntity.ok(apiKeyRepository.findAll());
-    }
-
-    @PatchMapping("/{id}/desativar")
-    public ResponseEntity<Void> desativarKey(@PathVariable Long id) {
-        return apiKeyRepository.findById(id)
-                .map(key -> {
-                    key.setAtiva(false);
-                    apiKeyRepository.save(key);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public static String hashKey(String rawKey) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawKey.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Erro ao calcular hash da API Key", e);
+        }
     }
 }

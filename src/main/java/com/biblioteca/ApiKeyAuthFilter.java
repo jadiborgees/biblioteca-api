@@ -23,32 +23,47 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-
-        // Endpoints públicos que não exigem X-API-Key (geração de chave, Swagger, H2 console)
-        if (path.startsWith("/api/keys") || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs") || path.startsWith("/h2-console")) {
+        // 1. Libera requisições Preflight CORS (método OPTIONS) sem exigir X-API-Key
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
             filterChain.doFilter(request, response);
             return;
         }
 
-        String apiKey = request.getHeader("X-API-Key");
-
-        if (apiKey == null || apiKey.isBlank()) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"erro\": \"Cabeçalho X-API-Key é obrigatório para acessar este recurso.\"}");
+        // 2. Libera rotas públicas (Swagger, H2 Console, etc.)
+        String requestURI = request.getRequestURI();
+        if (isPublicRoute(requestURI)) {
+            filterChain.doFilter(request, response);
             return;
         }
 
-        boolean keyValida = apiKeyRepository.findByKeyAndAtivaTrue(apiKey).isPresent();
+        // 3. Validação do Cabeçalho X-API-Key
+        String apiKeyHeader = request.getHeader("X-API-Key");
 
-        if (!keyValida) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
+        if (apiKeyHeader == null || apiKeyHeader.trim().isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"erro\": \"Chave de API inválida ou inativa.\"}");
+            response.getWriter().write("{\"erro\": \"Não autorizado: Cabeçalho X-API-Key ausente ou inválido.\"}");
+            return;
+        }
+
+        // 4. Valida se a chave existe e está ativa no banco
+        String keyHash = ApiKeyController.hashKey(apiKeyHeader);
+        boolean isValidKey = apiKeyRepository.findByKeyHashAndActiveTrue(keyHash).isPresent();
+        if (!isValidKey) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"erro\": \"Não autorizado: Chave de API inválida ou inativa.\"}");
             return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublicRoute(String uri) {
+        return uri.startsWith("/swagger-ui")
+                || uri.startsWith("/v3/api-docs")
+                || uri.startsWith("/h2-console")
+                || uri.equals("/api/keys/generate");
     }
 }

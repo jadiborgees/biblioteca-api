@@ -1,8 +1,5 @@
 package com.biblioteca;
 
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,38 +8,73 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private static final int MAX_REQUESTS = 10; // Limite de requisições por janela
+    private static final long WINDOW_DURATION_MS = 60_000; // Janela de 60 segundos (1 minuto)
 
-    private Bucket createNewBucket() {
-        Refill refill = Refill.intervally(10, Duration.ofMinutes(1));
-        Bandwidth limit = Bandwidth.classic(10, refill);
-        return Bucket.builder().addLimit(limit).build();
+    private static class RequestTracker {
+        int count;
+        long startTime;
+
+        RequestTracker(long startTime) {
+            this.count = 1;
+            this.startTime = startTime;
+        }
     }
+
+    private final Map<String, RequestTracker> clientRequests = new ConcurrentHashMap<>();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String apiKey = request.getHeader("X-API-Key");
-        String key = (apiKey != null && !apiKey.isBlank()) ? apiKey : request.getRemoteAddr();
-
-        Bucket bucket = buckets.computeIfAbsent(key, k -> createNewBucket());
-
-        if (bucket.tryConsume(1)) {
-            filterChain.doFilter(request, response);
-        } else {
-            response.setStatus(429); // HTTP 429 Too Many Requests
-            response.setContentType("application/json;charset=UTF-8");
-            response.setHeader("Retry-After", "60"); // Header Retry-After
-            response.getWriter().write("{\"erro\": \"Limite de requisições excedido. Tente novamente em 60 segundos.\"}");
+        // Identifica o cliente pelo IP ou chave de API
+        String clientKey = request.getHeader("X-API-Key");
+        if (clientKey == null || clientKey.isBlank()) {
+            clientKey = request.getRemoteAddr();
         }
+
+        long currentTime = System.currentTimeMillis();
+        RequestTracker tracker = clientRequests.get(clientKey);
+
+        if (tracker == null || (currentTime - tracker.startTime) > WINDOW_DURATION_MS) {
+            // Nova janela de tempo
+            tracker = new RequestTracker(currentTime);
+            clientRequests.put(clientKey, tracker);
+        } else {
+            // Incrementa contador na janela atual
+            tracker.count++;
+        }
+
+        long timeElapsed = currentTime - tracker.startTime;
+        long timeRemainingMs = WINDOW_DURATION_MS - timeElapsed;
+        long secondsUntilReset = Math.max(1, timeRemainingMs / 1000);
+
+        int remainingRequests = Math.max(0, MAX_REQUESTS - tracker.count);
+
+        // Define os cabeçalhos padrão de Rate Limit
+        response.setHeader("X-RateLimit-Limit", String.valueOf(MAX_REQUESTS));
+        response.setHeader("X-RateLimit-Remaining", String.valueOf(remainingRequests));
+        response.setHeader("X-RateLimit-Reset", String.valueOf(secondsUntilReset));
+
+        // Se excedeu o limite de requisições
+        if (tracker.count > MAX_REQUESTS) {
+            response.setStatus(429); // 429 Too Many Requests
+            response.setHeader("Retry-After", String.valueOf(secondsUntilReset));
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(String.format(
+                    "{\"erro\": \"Limite de requisições excedido. Tente novamente em %d segundos.\"}",
+                    secondsUntilReset
+            ));
+            return;
+        }
+
+        filterChain.doFilter(request, response);
     }
 }
