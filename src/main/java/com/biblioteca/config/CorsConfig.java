@@ -14,10 +14,13 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins(
-                                "http://localhost:3000",
-                                "http://localhost:4200",
-                                "https://biblioteca-app.vercel.app"
+                        // Usar allowedOriginPatterns em vez de allowedOrigins para aceitar subdomínios e IPs de redes locais (React Native/Expo)
+                        .allowedOriginPatterns(
+                                "http://localhost:[*]",           // Cobre 3000, 4200, 8081, etc.
+                                "http://127.0.0.1:[*]",
+                                "http://10.0.2.2:[*]",           // Emulador Android Studio
+                                "http://192.168.*:[*]",          // Dispositivo físico na rede Wi-Fi local
+                                "https://*.vercel.app"            // Ambientes de preview e prod na Vercel
                         )
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders(
@@ -27,7 +30,12 @@ public class CorsConfig {
                                 "X-Idempotency-Key",
                                 "X-API-Version"
                         )
-                        .exposedHeaders("Retry-After", "X-API-Version")
+                        .exposedHeaders(
+                                "Location",                       // Importante para retornos de POST (201 Created)
+                                "Retry-After",
+                                "X-API-Version",
+                                "X-Idempotency-Key"
+                        )
                         .allowCredentials(true)
                         .maxAge(3600);
             }

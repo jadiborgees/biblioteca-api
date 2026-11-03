@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.io.IOException;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private final ApiKeyRepository apiKeyRepository;
+    private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public ApiKeyAuthFilter(ApiKeyRepository apiKeyRepository) {
         this.apiKeyRepository = apiKeyRepository;
@@ -25,14 +27,13 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // 1. Libera requisições Preflight CORS (método OPTIONS) sem exigir X-API-Key
+        // 1. Libera requisições Preflight CORS (método OPTIONS) imediatamente
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             response.setStatus(HttpServletResponse.SC_OK);
-            filterChain.doFilter(request, response);
-            return;
+            return; // Retorna 200 OK diretamente para o navegador validar o CORS
         }
 
-        // 2. Libera rotas públicas (Swagger, H2 Console, etc.)
+        // 2. Libera rotas públicas (Swagger, OpenAPI, H2 Console, Geração de Chaves)
         String requestURI = request.getRequestURI();
         if (isPublicRoute(requestURI)) {
             filterChain.doFilter(request, response);
@@ -63,9 +64,11 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicRoute(String uri) {
-        return uri.startsWith("/swagger-ui")
-                || uri.startsWith("/v3/api-docs")
-                || uri.startsWith("/h2-console")
-                || uri.equals("/api/keys/generate");
+        return pathMatcher.match("/swagger-ui/**", uri)
+                || pathMatcher.match("/swagger-ui.html", uri)
+                || pathMatcher.match("/v3/api-docs/**", uri)
+                || pathMatcher.match("/swagger-resources/**", uri)
+                || pathMatcher.match("/h2-console/**", uri)
+                || pathMatcher.match("/api/keys/generate", uri);
     }
 }
