@@ -1,5 +1,11 @@
 package com.biblioteca.controller;
 
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotBlank;
+import com.biblioteca.dto.AutorRequestDTO;
+
 import com.biblioteca.assembler.AutorModelAssembler;
 import com.biblioteca.exception.AutorNotFoundException;
 import com.biblioteca.exception.ErroResponse;
@@ -67,7 +73,7 @@ public class AutorController {
     })
     public ResponseEntity<PagedModel<EntityModel<Autor>>> buscarPorNome(
             @Parameter(description = "Nome do autor para busca", required = true, example = "Machado")
-            @RequestParam String nome,
+            @RequestParam @NotBlank(message = "O parâmetro 'nome' é obrigatório.") String nome,
             @ParameterObject Pageable pageable,
             @Parameter(hidden = true) PagedResourcesAssembler<Autor> pagedResourcesAssembler) {
 
@@ -85,7 +91,7 @@ public class AutorController {
     })
     public EntityModel<Autor> buscarPorId(
             @Parameter(description = "Identificador único do autor", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Autor autor = autorRepository.findById(id)
                 .orElseThrow(() -> new AutorNotFoundException(id));
         return assembler.toModel(autor);
@@ -113,7 +119,10 @@ public class AutorController {
                                       "nacionalidade": "Brasileira"
                                     }
                                     """)))
-            @Valid @RequestBody Autor autor) {
+            @Parameter(description = "Chave única do cliente (1 a 255 caracteres: letras, números, '-', '_', ':' ou '.'). Repetir o envio com a mesma chave e o mesmo corpo devolve a resposta original.", example = "cadastro-0001")
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody AutorRequestDTO dto) {
+        Autor autor = dto.toEntity();
 
         Autor novoAutor = autorRepository.save(autor);
         return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoAutor));
@@ -130,8 +139,9 @@ public class AutorController {
     })
     public EntityModel<Autor> atualizar(
             @Parameter(description = "Identificador único do autor", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody Autor autor) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id,
+            @Valid @RequestBody AutorRequestDTO dto) {
+        Autor autor = dto.toEntity();
 
         Autor existente = autorRepository.findById(id)
                 .orElseThrow(() -> new AutorNotFoundException(id));
@@ -155,7 +165,7 @@ public class AutorController {
     })
     public void excluir(
             @Parameter(description = "Identificador único do autor a ser excluído", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Autor existente = autorRepository.findById(id)
                 .orElseThrow(() -> new AutorNotFoundException(id));
         autorRepository.delete(existente);

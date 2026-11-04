@@ -21,7 +21,7 @@ public class LivroModelAssembler implements RepresentationModelAssembler<Livro, 
                 selfLink,
                 Link.of(selfLink.getHref()).withRel("update"),
                 Link.of(selfLink.getHref()).withRel("delete"),
-                linkTo(methodOn(LivroController.class).listar(null, null)).withRel("livros")
+                linkTo(methodOn(LivroController.class).listar(null, null, null)).withRel("livros")
         );
     }
 }

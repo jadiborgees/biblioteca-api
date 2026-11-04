@@ -1,5 +1,11 @@
 package com.biblioteca.controller;
 
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotBlank;
+import com.biblioteca.dto.EnderecoRequestDTO;
+
 import com.biblioteca.assembler.EnderecoModelAssembler;
 import com.biblioteca.exception.EnderecoNotFoundException;
 import com.biblioteca.exception.ErroResponse;
@@ -67,7 +73,7 @@ public class EnderecoController {
     })
     public ResponseEntity<PagedModel<EntityModel<Endereco>>> buscarPorCidade(
             @Parameter(description = "Nome da cidade para pesquisa", required = true, example = "São Paulo")
-            @RequestParam String cidade,
+            @RequestParam @NotBlank(message = "O parâmetro 'cidade' é obrigatório.") String cidade,
             @ParameterObject Pageable pageable,
             @Parameter(hidden = true) PagedResourcesAssembler<Endereco> pagedResourcesAssembler) {
 
@@ -85,7 +91,7 @@ public class EnderecoController {
     })
     public EntityModel<Endereco> buscarPorId(
             @Parameter(description = "Identificador único do endereço", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Endereco endereco = enderecoRepository.findById(id)
                 .orElseThrow(() -> new EnderecoNotFoundException(id));
         return assembler.toModel(endereco);
@@ -118,7 +124,10 @@ public class EnderecoController {
                                       "cep": "01310-100"
                                     }
                                     """)))
-            @Valid @RequestBody Endereco endereco) {
+            @Parameter(description = "Chave única do cliente (1 a 255 caracteres: letras, números, '-', '_', ':' ou '.'). Repetir o envio com a mesma chave e o mesmo corpo devolve a resposta original.", example = "cadastro-0001")
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody EnderecoRequestDTO dto) {
+        Endereco endereco = dto.toEntity();
 
         Endereco novoEndereco = enderecoRepository.save(endereco);
         return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoEndereco));
@@ -135,8 +144,9 @@ public class EnderecoController {
     })
     public EntityModel<Endereco> atualizar(
             @Parameter(description = "Identificador único do endereço", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody Endereco endereco) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id,
+            @Valid @RequestBody EnderecoRequestDTO dto) {
+        Endereco endereco = dto.toEntity();
 
         Endereco existente = enderecoRepository.findById(id)
                 .orElseThrow(() -> new EnderecoNotFoundException(id));
@@ -165,7 +175,7 @@ public class EnderecoController {
     })
     public void excluir(
             @Parameter(description = "Identificador único do endereço a ser excluído", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Endereco existente = enderecoRepository.findById(id)
                 .orElseThrow(() -> new EnderecoNotFoundException(id));
         enderecoRepository.delete(existente);

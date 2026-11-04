@@ -1,5 +1,22 @@
 package com.biblioteca.controller;
 
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotBlank;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import com.biblioteca.dto.LivroRequestDTO;
+import com.biblioteca.dto.PaginaResponseDTO;
+import com.biblioteca.dto.ReferenciaDTO;
+import com.biblioteca.exception.AutorNotFoundException;
+import com.biblioteca.exception.UnsupportedApiVersionException;
+import com.biblioteca.exception.RequisicaoInvalidaException;
+import com.biblioteca.repository.AutorRepository;
+import com.biblioteca.model.Autor;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.biblioteca.assembler.LivroModelAssembler;
 import com.biblioteca.dto.LivroV2DTO;
 import com.biblioteca.exception.ErroResponse;
@@ -46,6 +63,9 @@ public class LivroController {
     private LivroRepository livroRepository;
 
     @Autowired
+    private AutorRepository autorRepository;
+
+    @Autowired
     private LivroModelAssembler assembler;
 
     // --- VERSIONAMENTO: Versão 1 (Padrão: quando X-API-Version não é informado ou é diferente de 2) ---
@@ -59,7 +79,16 @@ public class LivroController {
     })
     public ResponseEntity<PagedModel<EntityModel<Livro>>> listar(
             @ParameterObject Pageable pageable,
-            @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
+            @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler,
+            @Parameter(in = ParameterIn.HEADER, name = "X-API-Version", required = false,
+                    description = "Versão da API: 1 (padrão) ou 2.",
+                    schema = @Schema(type = "string", allowableValues = {"1", "2"}, example = "1"))
+            @RequestHeader(value = "X-API-Version", required = false) String versao) {
+
+        if (versao != null && !versao.isBlank() && !List.of("1", "1.0").contains(versao.trim())) {
+            throw new UnsupportedApiVersionException(
+                    "Versão de API '" + versao + "' não suportada. Use o cabeçalho X-API-Version com 1 ou 2.");
+        }
 
         Page<Livro> page = livroRepository.findAll(pageable);
         PagedModel<EntityModel<Livro>> pagedModel = pagedResourcesAssembler.toModel(page, assembler);
@@ -75,15 +104,15 @@ public class LivroController {
             @ApiResponse(responseCode = "200", description = "Lista de livros v2 recuperada com sucesso",
                     headers = @Header(name = "X-API-Version", description = "Versão da API utilizada", schema = @Schema(type = "string")))
     })
-    public ResponseEntity<List<LivroV2DTO>> listarV2() {
-        List<LivroV2DTO> livrosV2 = livroRepository.findAll()
-                .stream()
-                .map(livro -> new LivroV2DTO(livro, "v2.0 - Resposta estendida com metadados"))
-                .toList();
+    public ResponseEntity<PaginaResponseDTO<LivroV2DTO>> listarV2(
+            @ParameterObject Pageable pageable) {
+        PaginaResponseDTO<LivroV2DTO> pagina = PaginaResponseDTO.from(
+                livroRepository.findAll(pageable),
+                livro -> new LivroV2DTO(livro, "v2.0 - Resposta estendida com metadados"));
 
         return ResponseEntity.ok()
                 .header("X-API-Version", "2.0")
-                .body(livrosV2);
+                .body(pagina);
     }
 
     @GetMapping("/buscar")
@@ -95,7 +124,7 @@ public class LivroController {
     })
     public ResponseEntity<PagedModel<EntityModel<Livro>>> buscarPorTitulo(
             @Parameter(description = "Termo ou título a ser pesquisado", required = true, example = "Dom")
-            @RequestParam String titulo,
+            @RequestParam @NotBlank(message = "O parâmetro 'titulo' é obrigatório.") String titulo,
             @ParameterObject Pageable pageable,
             @Parameter(hidden = true) PagedResourcesAssembler<Livro> pagedResourcesAssembler) {
 
@@ -113,7 +142,7 @@ public class LivroController {
     })
     public EntityModel<Livro> buscarPorId(
             @Parameter(description = "Identificador único do livro", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Livro livro = livroRepository.findById(id)
                 .orElseThrow(() -> new LivroNotFoundException(id));
         return assembler.toModel(livro);
@@ -145,10 +174,13 @@ public class LivroController {
                                       ]
                                     }
                                     """)))
-            @Valid @RequestBody Livro livro) {
+            @Parameter(description = "Chave única do cliente (1 a 255 caracteres: letras, números, '-', '_', ':' ou '.'). Repetir o envio com a mesma chave e o mesmo corpo devolve a resposta original.", example = "cadastro-0001")
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody LivroRequestDTO dto) {
+        Livro livro = dto.toEntity(resolverAutores(dto.autores()));
 
         if (livro.getAnoPublicacao() != null && livro.getAnoPublicacao() > LocalDate.now().getYear()) {
-            throw new RegraNegocioException("O ano de publicação não pode ser maior que o ano atual.");
+            throw new RequisicaoInvalidaException("O ano de publicação não pode ser maior que o ano atual.");
         }
 
         Livro novoLivro = livroRepository.save(livro);
@@ -168,14 +200,15 @@ public class LivroController {
     })
     public EntityModel<Livro> atualizar(
             @Parameter(description = "Identificador único do livro", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody Livro livro) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id,
+            @Valid @RequestBody LivroRequestDTO dto) {
+        Livro livro = dto.toEntity(resolverAutores(dto.autores()));
 
         Livro existente = livroRepository.findById(id)
                 .orElseThrow(() -> new LivroNotFoundException(id));
 
         if (livro.getAnoPublicacao() != null && livro.getAnoPublicacao() > LocalDate.now().getYear()) {
-            throw new RegraNegocioException("O ano de publicação não pode ser maior que o ano atual.");
+            throw new RequisicaoInvalidaException("O ano de publicação não pode ser maior que o ano atual.");
         }
 
         existente.setTitulo(livro.getTitulo());
@@ -201,9 +234,20 @@ public class LivroController {
     })
     public void excluir(
             @Parameter(description = "Identificador único do livro a ser excluído", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Livro existente = livroRepository.findById(id)
                 .orElseThrow(() -> new LivroNotFoundException(id));
         livroRepository.delete(existente);
+    }
+
+    private Set<Autor> resolverAutores(List<ReferenciaDTO> referencias) {
+        Set<Long> ids = referencias.stream().map(ReferenciaDTO::id).collect(Collectors.toCollection(HashSet::new));
+        List<Autor> encontrados = autorRepository.findAllById(ids);
+        if (encontrados.size() != ids.size()) {
+            Set<Long> achados = encontrados.stream().map(Autor::getId).collect(Collectors.toSet());
+            ids.removeAll(achados);
+            throw new AutorNotFoundException(ids.iterator().next());
+        }
+        return new HashSet<>(encontrados);
     }
 }

@@ -22,7 +22,7 @@ public class AutorModelAssembler implements RepresentationModelAssembler<Autor, 
                 Link.of(selfLink.getHref()).withRel("update"),
                 Link.of(selfLink.getHref()).withRel("delete"),
                 linkTo(methodOn(AutorController.class).listar(null, null)).withRel("autores"),
-                linkTo(methodOn(LivroController.class).listar(null, null)).withRel("livros")
+                linkTo(methodOn(LivroController.class).listar(null, null, null)).withRel("livros")
         );
     }
 }

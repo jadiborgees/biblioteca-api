@@ -1,0 +1,144 @@
+### Variáveis
+@base = http://localhost:8080
+@admin = bib-chave-demo-12345
+@operador = bib-operador-demo-12345
+@leitor = bib-leitor-demo-12345
+
+### Leitura pública (sem chave) -> 200
+GET {{base}}/livros
+
+### Escrita sem chave -> 401
+POST {{base}}/autores
+Content-Type: application/json
+
+{ "nome": "Clarice Lispector", "nacionalidade": "Brasileira" }
+
+### Chave inválida -> 401
+GET {{base}}/usuarios
+X-API-Key: chave-que-nao-existe
+
+### LEITOR tentando escrever -> 403
+POST {{base}}/autores
+X-API-Key: {{leitor}}
+Content-Type: application/json
+
+{ "nome": "Clarice Lispector", "nacionalidade": "Brasileira" }
+
+### Gerar chave (ADMIN) -> 201; a chave aparece só nesta resposta
+POST {{base}}/api/keys
+X-API-Key: {{admin}}
+Content-Type: application/json
+
+{ "usuario": "maria@biblioteca.com", "nivel": "OPERADOR" }
+
+### OPERADOR tentando gerenciar chaves -> 403
+GET {{base}}/api/keys
+X-API-Key: {{operador}}
+
+### Listar chaves (ADMIN, mascaradas) -> 200
+GET {{base}}/api/keys
+X-API-Key: {{admin}}
+
+### Desativar chave (use o id criado acima; 1, 2 e 3 são as chaves de desenvolvimento) -> 200
+PATCH {{base}}/api/keys/4/desativar
+X-API-Key: {{admin}}
+
+### Reativar chave -> 200
+PATCH {{base}}/api/keys/4/ativar
+X-API-Key: {{admin}}
+
+### Idempotência: primeiro envio -> 201
+POST {{base}}/autores
+X-API-Key: {{operador}}
+X-Idempotency-Key: cadastro-clarice-001
+Content-Type: application/json
+
+{ "nome": "Clarice Lispector", "nacionalidade": "Brasileira" }
+
+### Idempotência: mesmo envio -> 201 + Idempotent-Replayed: true (mesmo id, nada criado)
+POST {{base}}/autores
+X-API-Key: {{operador}}
+X-Idempotency-Key: cadastro-clarice-001
+Content-Type: application/json
+
+{ "nome": "Clarice Lispector", "nacionalidade": "Brasileira" }
+
+### Idempotência: mesma chave, corpo diferente -> 422
+POST {{base}}/autores
+X-API-Key: {{operador}}
+X-Idempotency-Key: cadastro-clarice-001
+Content-Type: application/json
+
+{ "nome": "Hilda Hilst", "nacionalidade": "Brasileira" }
+
+### Idempotência: chave com formato inválido -> 400
+POST {{base}}/autores
+X-API-Key: {{operador}}
+X-Idempotency-Key: chave com espaços
+Content-Type: application/json
+
+{ "nome": "Hilda Hilst" }
+
+### JSON malformado -> 400
+POST {{base}}/autores
+X-API-Key: {{operador}}
+Content-Type: application/json
+
+{ "nome": "Sem fechar a chave"
+
+### Validação por campo -> 400 com o mapa "campos"
+POST {{base}}/autores
+X-API-Key: {{operador}}
+Content-Type: application/json
+
+{ "nome": "", "nacionalidade": "Brasileira" }
+
+### Atributo que não existe no DTO é ignorado (não é possível definir o id) -> 201, id gerado pelo servidor
+POST {{base}}/autores
+X-API-Key: {{operador}}
+Content-Type: application/json
+
+{ "id": 999, "nome": "Autor Sem Id Forjado" }
+
+### Recurso inexistente -> 404
+GET {{base}}/usuarios/9999
+X-API-Key: {{leitor}}
+
+### Rota inexistente -> 404
+GET {{base}}/rota-que-nao-existe
+X-API-Key: {{admin}}
+
+### Parâmetro inválido (id não positivo) -> 400
+GET {{base}}/livros/0
+
+### Regra de negócio: livro já emprestado -> 409
+POST {{base}}/emprestimos
+X-API-Key: {{operador}}
+Content-Type: application/json
+
+{ "dataEmprestimo": "2026-11-04", "dataDevolucaoPrevista": "2026-11-18", "usuario": { "id": 1 }, "livro": { "id": 1 } }
+
+### Versão 1 (padrão) -> 200, paginado HATEOAS
+GET {{base}}/livros?page=0&size=2
+
+### Versão 2 -> 200, paginado com LivroV2DTO
+GET {{base}}/livros
+X-API-Version: 2
+
+### Versão não suportada -> 400
+GET {{base}}/livros
+X-API-Version: 3
+
+### CORS: preflight de origem autorizada -> 200 com Access-Control-Allow-Origin (sem X-API-Key)
+OPTIONS {{base}}/autores
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: content-type,x-api-key
+
+### CORS: origem não autorizada -> sem Access-Control-Allow-Origin
+OPTIONS {{base}}/autores
+Origin: http://site-malicioso.com
+Access-Control-Request-Method: POST
+
+### Rate limiting: após o limite por minuto, a resposta é 429 com Retry-After
+GET {{base}}/livros

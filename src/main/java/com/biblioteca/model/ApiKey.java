@@ -1,65 +1,51 @@
 package com.biblioteca.model;
 
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "api_keys")
+@Table(name = "tb_api_key")
 public class ApiKey {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String keyHash; // Salva o HASH da chave em vez do texto puro
+    // Somente o hash SHA-256 é persistido; a chave em texto puro nunca é armazenada.
+    @Column(name = "chave_hash", nullable = false, unique = true, length = 64)
+    private String chaveHash;
 
-    @Column(nullable = false)
-    private String clientName;
+    // Versão mascarada, usada apenas para identificação em listagens.
+    @Column(nullable = false, length = 32)
+    private String mascara;
 
-    @Column(nullable = false)
-    private boolean active = true;
+    @Column(nullable = false, length = 100)
+    private String usuario;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private NivelAcesso nivel;
+
+    private boolean ativa = true;
+
+    private LocalDateTime dataCriacao = LocalDateTime.now();
 
     public ApiKey() {}
 
-    public ApiKey(String keyHash, String clientName) {
-        this.keyHash = keyHash;
-        this.clientName = clientName;
-        this.active = true;
-        this.createdAt = LocalDateTime.now();
+    public ApiKey(String chaveHash, String mascara, String usuario, NivelAcesso nivel) {
+        this.chaveHash = chaveHash;
+        this.mascara = mascara;
+        this.usuario = usuario;
+        this.nivel = nivel;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getKeyHash() {
-        return keyHash;
-    }
-
-    public void setKeyHash(String keyHash) {
-        this.keyHash = keyHash;
-    }
-
-    public String getClientName() {
-        return clientName;
-    }
-
-    public void setClientName(String clientName) {
-        this.clientName = clientName;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public Long getId() { return id; }
+    public String getChaveHash() { return chaveHash; }
+    public String getMascara() { return mascara; }
+    public String getUsuario() { return usuario; }
+    public NivelAcesso getNivel() { return nivel; }
+    public boolean isAtiva() { return ativa; }
+    public void setAtiva(boolean ativa) { this.ativa = ativa; }
+    public LocalDateTime getDataCriacao() { return dataCriacao; }
 }

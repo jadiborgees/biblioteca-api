@@ -60,7 +60,7 @@ Os relacionamentos entre elas são:
 A entidade `Emprestimo` utiliza o enum `StatusEmprestimo`, que possui os valores:
 
 - `ATIVO`
-- `CONCLUIDO`
+- `DEVOLVIDO`
 - `ATRASADO`
 
 ---
@@ -226,7 +226,7 @@ http://localhost:8080/h2-console
 Configuração para acesso:
 
 ```text
-JDBC URL: jdbc:h2:mem:biblioteca
+JDBC URL: jdbc:h2:mem:testdb
 Usuário: sa
 Senha: deixar em branco
 ```
@@ -255,6 +255,109 @@ src/main/java/com/biblioteca
 - `repository` — acesso aos dados utilizando Spring Data JPA
 
 ---
+
+---
+
+## Recursos avançados (Parte 2)
+
+### Autenticação com chave de API
+
+Rotas protegidas exigem o cabeçalho `X-API-Key`.
+
+| Rota | Acesso |
+|---|---|
+| `GET /livros`, `GET /autores` (e subrotas) | Público |
+| Demais operações (`POST`, `PUT`, `PATCH`, `DELETE`, usuários, endereços, empréstimos) | Chave válida |
+| `/api/keys/**` | Chave `ADMIN` |
+
+Níveis de acesso: `ADMIN` (tudo, inclusive chaves), `OPERADOR` (leitura e escrita, sem gestão de chaves) e `LEITOR` (somente `GET`). Sem chave ou com chave inválida: `401`. Sem permissão: `403`.
+
+Gestão de chaves:
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/keys` | Gera uma chave. Corpo: `{"usuario": "...", "nivel": "OPERADOR"}`. A chave aparece só nesta resposta. |
+| `GET` | `/api/keys` | Lista as chaves (versão mascarada). |
+| `PATCH` | `/api/keys/{id}/ativar` | Reativa uma chave. |
+| `PATCH` | `/api/keys/{id}/desativar` | Desativa uma chave. |
+| `DELETE` | `/api/keys/{id}` | Exclui uma chave. |
+
+O banco guarda somente o hash SHA-256 de cada chave.
+
+Chaves de desenvolvimento (criadas na inicialização; não usar em produção):
+
+| Chave | Nível |
+|---|---|
+| `bib-chave-demo-12345` | ADMIN |
+| `bib-operador-demo-12345` | OPERADOR |
+| `bib-leitor-demo-12345` | LEITOR |
+
+```bash
+curl -i http://localhost:8080/livros/1
+# 200 OK (leitura pública)
+
+curl -i -X POST http://localhost:8080/autores -H "X-API-Key: bib-leitor-demo-12345" \
+  -H "Content-Type: application/json" -d '{"nome": "Clarice Lispector"}'
+# 403 Forbidden (LEITOR não escreve)
+```
+
+### Idempotência em POST
+
+Envie `X-Idempotency-Key` (1 a 255 caracteres: letras, números, `-`, `_`, `:` ou `.`).
+
+| Situação | Resposta |
+|---|---|
+| Primeira requisição | Processada. Se concluída com 2xx, a resposta fica guardada por 24 horas. |
+| Mesma chave, mesmo método, rota e corpo | Resposta original, com `Idempotent-Replayed: true`. Nada é criado de novo. |
+| Mesma chave, outro método, rota ou corpo | `422 Unprocessable Entity` |
+| Mesma chave com a primeira ainda em andamento | `409 Conflict` |
+| Requisição que falhou (4xx ou 5xx) | Chave liberada para nova tentativa |
+
+A chave é escopada ao cliente (hash da `X-API-Key`, ou IP quando não há chave).
+
+### Rate limiting
+
+Cada IP pode fazer 60 requisições por minuto, configurável em `application.properties`:
+
+```properties
+biblioteca.rate-limit.capacidade=60
+biblioteca.rate-limit.periodo-segundos=60
+```
+
+Todas as respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`. Ao exceder, a resposta é `429` com `Retry-After`.
+
+### CORS
+
+Origens exatas, em `biblioteca.cors.allowed-origins`: `http://localhost:3000`, `http://localhost:4200`, `http://localhost:8081` e `https://biblioteca-app.vercel.app`. O CORS roda antes da autenticação, então preflights não exigem `X-API-Key`.
+
+### Versionamento
+
+`GET /livros` aceita `X-API-Version`:
+
+- `1` (padrão, ou sem o cabeçalho): lista paginada no formato HATEOAS.
+- `2`: lista paginada no formato `LivroV2DTO`.
+
+Qualquer outro valor retorna `400`.
+
+```bash
+curl -i http://localhost:8080/livros -H "X-API-Version: 2"
+curl -i http://localhost:8080/livros -H "X-API-Version: 3"   # 400
+```
+
+### Validação e erros
+
+- Os bodies de entrada usam DTOs de requisição com Bean Validation, o que impede o cliente de definir campos como `id`.
+- Parâmetros de caminho e de consulta também são validados (ex.: `id` positivo, `titulo` obrigatório).
+- Erros de validação retornam `400` com o mapa `campos`.
+- Todos os erros seguem o mesmo formato, incluindo os produzidos pelos filtros (`401`, `403`, `429`).
+
+### Requisições prontas
+
+O arquivo `docs/requisicoes-parte2.http` tem as requisições de teste desta seção (IntelliJ ou VS Code com REST Client).
+
+### Testes automatizados
+
+`Parte2IntegrationTests` e `RateLimitIntegrationTests` cobrem autenticação, níveis, CORS, versionamento, idempotência, validação e rate limit. Execute com `./mvnw test`.
 
 ## Autora
 

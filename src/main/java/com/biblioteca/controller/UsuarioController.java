@@ -1,5 +1,11 @@
 package com.biblioteca.controller;
 
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotBlank;
+import com.biblioteca.dto.UsuarioRequestDTO;
+
 import com.biblioteca.assembler.UsuarioModelAssembler;
 import com.biblioteca.exception.ErroResponse;
 import com.biblioteca.exception.UsuarioNotFoundException;
@@ -67,7 +73,7 @@ public class UsuarioController {
     })
     public ResponseEntity<PagedModel<EntityModel<Usuario>>> buscarPorNome(
             @Parameter(description = "Nome do usuário para busca", required = true, example = "Maria")
-            @RequestParam String nome,
+            @RequestParam @NotBlank(message = "O parâmetro 'nome' é obrigatório.") String nome,
             @ParameterObject Pageable pageable,
             @Parameter(hidden = true) PagedResourcesAssembler<Usuario> pagedResourcesAssembler) {
 
@@ -85,7 +91,7 @@ public class UsuarioController {
     })
     public EntityModel<Usuario> buscarPorId(
             @Parameter(description = "Identificador único do usuário", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNotFoundException(id));
         return assembler.toModel(usuario);
@@ -124,7 +130,10 @@ public class UsuarioController {
                                       }
                                     }
                                     """)))
-            @Valid @RequestBody Usuario usuario) {
+            @Parameter(description = "Chave única do cliente (1 a 255 caracteres: letras, números, '-', '_', ':' ou '.'). Repetir o envio com a mesma chave e o mesmo corpo devolve a resposta original.", example = "cadastro-0001")
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody UsuarioRequestDTO dto) {
+        Usuario usuario = dto.toEntity();
 
         Usuario novoUsuario = usuarioRepository.save(usuario);
         return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(novoUsuario));
@@ -143,8 +152,9 @@ public class UsuarioController {
     })
     public EntityModel<Usuario> atualizar(
             @Parameter(description = "Identificador único do usuário", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody Usuario usuario) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id,
+            @Valid @RequestBody UsuarioRequestDTO dto) {
+        Usuario usuario = dto.toEntity();
 
         Usuario existente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNotFoundException(id));
@@ -174,7 +184,7 @@ public class UsuarioController {
     })
     public void excluir(
             @Parameter(description = "Identificador único do usuário a ser excluído", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Usuario existente = usuarioRepository.findById(id)
                 .orElseThrow(() -> new UsuarioNotFoundException(id));
         usuarioRepository.delete(existente);

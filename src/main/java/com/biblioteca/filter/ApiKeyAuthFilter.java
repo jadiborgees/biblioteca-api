@@ -1,74 +1,86 @@
 package com.biblioteca.filter;
 
-import com.biblioteca.controller.ApiKeyController;
-import com.biblioteca.repository.ApiKeyRepository;
+import com.biblioteca.exception.ErroHttpWriter;
+import com.biblioteca.model.ApiKey;
+import com.biblioteca.service.ApiKeyService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
 
-@Component
+/**
+ * Exige uma chave de API válida (cabeçalho X-API-Key) nas rotas protegidas e aplica o nível de acesso.
+ *
+ * Públicas: leitura (GET/HEAD) de /livros e /autores e a documentação (Swagger, H2 console).
+ * Protegidas: todas as demais. A gestão de chaves (/api/keys) exige nível ADMIN (regra do NivelAcesso).
+ */
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
-    private final ApiKeyRepository apiKeyRepository;
-    private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    public static final String HEADER = "X-API-Key";
+    public static final String ATRIBUTO_USUARIO = "apiKey.usuario";
+    public static final String ATRIBUTO_NIVEL = "apiKey.nivel";
 
-    public ApiKeyAuthFilter(ApiKeyRepository apiKeyRepository) {
-        this.apiKeyRepository = apiKeyRepository;
+    private static final List<String> LEITURA_PUBLICA = List.of("/livros", "/autores");
+    private static final List<String> ROTAS_PUBLICAS = List.of(
+            "/swagger-ui", "/v3/api-docs", "/h2-console", "/error", "/termos-de-uso");
+
+    private final ApiKeyService apiKeyService;
+    private final ErroHttpWriter erroHttpWriter;
+
+    public ApiKeyAuthFilter(ApiKeyService apiKeyService, ErroHttpWriter erroHttpWriter) {
+        this.apiKeyService = apiKeyService;
+        this.erroHttpWriter = erroHttpWriter;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-
-        // 1. Libera requisições Preflight CORS (método OPTIONS) imediatamente
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            return; // Retorna 200 OK diretamente para o navegador validar o CORS
-        }
-
-        // 2. Libera rotas públicas (Swagger, OpenAPI, H2 Console, Geração de Chaves)
-        String requestURI = request.getRequestURI();
-        if (isPublicRoute(requestURI)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // 3. Validação do Cabeçalho X-API-Key
-        String apiKeyHeader = request.getHeader("X-API-Key");
-
-        if (apiKeyHeader == null || apiKeyHeader.trim().isEmpty()) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"erro\": \"Não autorizado: Cabeçalho X-API-Key ausente ou inválido.\"}");
-            return;
-        }
-
-        // 4. Valida se a chave existe e está ativa no banco
-        String keyHash = ApiKeyController.hashKey(apiKeyHeader);
-        boolean isValidKey = apiKeyRepository.findByKeyHashAndActiveTrue(keyHash).isPresent();
-        if (!isValidKey) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"erro\": \"Não autorizado: Chave de API inválida ou inativa.\"}");
-            return;
-        }
-
-        filterChain.doFilter(request, response);
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Preflight CORS (OPTIONS) é respondido pelo CorsFilter e nunca carrega X-API-Key.
+        return "OPTIONS".equalsIgnoreCase(request.getMethod())
+                || rotaPublica(request.getMethod(), request.getRequestURI());
     }
 
-    private boolean isPublicRoute(String uri) {
-        return pathMatcher.match("/swagger-ui/**", uri)
-                || pathMatcher.match("/swagger-ui.html", uri)
-                || pathMatcher.match("/v3/api-docs/**", uri)
-                || pathMatcher.match("/swagger-resources/**", uri)
-                || pathMatcher.match("/h2-console/**", uri)
-                || pathMatcher.match("/api/keys/generate", uri);
+    static boolean rotaPublica(String metodo, String caminho) {
+        if (ROTAS_PUBLICAS.stream().anyMatch(caminho::startsWith)) {
+            return true;
+        }
+        boolean leitura = "GET".equalsIgnoreCase(metodo) || "HEAD".equalsIgnoreCase(metodo);
+        return leitura && LEITURA_PUBLICA.stream().anyMatch(caminho::startsWith);
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+
+        String chave = request.getHeader(HEADER);
+        if (chave == null || chave.isBlank()) {
+            erroHttpWriter.escrever(request, response, HttpStatus.UNAUTHORIZED,
+                    "Não Autorizado", "Cabeçalho X-API-Key é obrigatório para acessar este recurso.");
+            return;
+        }
+
+        Optional<ApiKey> encontrada = apiKeyService.validar(chave.trim());
+        if (encontrada.isEmpty()) {
+            erroHttpWriter.escrever(request, response, HttpStatus.UNAUTHORIZED,
+                    "Não Autorizado", "Chave de API inválida ou inativa.");
+            return;
+        }
+
+        ApiKey apiKey = encontrada.get();
+        if (!apiKey.getNivel().permite(request.getMethod(), request.getRequestURI())) {
+            erroHttpWriter.escrever(request, response, HttpStatus.FORBIDDEN,
+                    "Acesso Negado", "A chave de nível " + apiKey.getNivel()
+                            + " não tem permissão para esta operação.");
+            return;
+        }
+
+        request.setAttribute(ATRIBUTO_USUARIO, apiKey.getUsuario());
+        request.setAttribute(ATRIBUTO_NIVEL, apiKey.getNivel().name());
+        filterChain.doFilter(request, response);
     }
 }

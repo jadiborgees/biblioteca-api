@@ -1,5 +1,11 @@
 package com.biblioteca.controller;
 
+import org.springframework.web.bind.annotation.RequestHeader;
+
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotBlank;
+import com.biblioteca.dto.EmprestimoRequestDTO;
+
 import com.biblioteca.assembler.EmprestimoModelAssembler;
 import com.biblioteca.exception.*;
 import com.biblioteca.model.Emprestimo;
@@ -97,7 +103,7 @@ public class EmprestimoController {
     })
     public EntityModel<Emprestimo> buscarPorId(
             @Parameter(description = "Identificador único do empréstimo", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Emprestimo emprestimo = emprestimoRepository.findById(id)
                 .orElseThrow(() -> new EmprestimoNotFoundException(id));
         return assembler.toModel(emprestimo);
@@ -130,7 +136,10 @@ public class EmprestimoController {
                                       "livro": { "id": 1 }
                                     }
                                     """)))
-            @Valid @RequestBody Emprestimo emprestimo) {
+            @Parameter(description = "Chave única do cliente (1 a 255 caracteres: letras, números, '-', '_', ':' ou '.'). Repetir o envio com a mesma chave e o mesmo corpo devolve a resposta original.", example = "cadastro-0001")
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody EmprestimoRequestDTO dto) {
+        Emprestimo emprestimo = dto.toEntity();
 
         if (emprestimo.getUsuario() == null || emprestimo.getUsuario().getId() == null) {
             throw new RegraNegocioException("O usuário é obrigatório e deve conter um ID válido.");
@@ -182,8 +191,9 @@ public class EmprestimoController {
     })
     public EntityModel<Emprestimo> atualizar(
             @Parameter(description = "Identificador único do empréstimo", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody Emprestimo emprestimo) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id,
+            @Valid @RequestBody EmprestimoRequestDTO dto) {
+        Emprestimo emprestimo = dto.toEntity();
 
         Emprestimo existente = emprestimoRepository.findById(id)
                 .orElseThrow(() -> new EmprestimoNotFoundException(id));
@@ -227,7 +237,7 @@ public class EmprestimoController {
     })
     public EntityModel<Emprestimo> devolver(
             @Parameter(description = "Identificador único do empréstimo a ser devolvido", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
 
         Emprestimo existente = emprestimoRepository.findById(id)
                 .orElseThrow(() -> new EmprestimoNotFoundException(id));
@@ -252,7 +262,7 @@ public class EmprestimoController {
     })
     public void excluir(
             @Parameter(description = "Identificador único do empréstimo a ser excluído", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive(message = "O id deve ser positivo.") Long id) {
         Emprestimo existente = emprestimoRepository.findById(id)
                 .orElseThrow(() -> new EmprestimoNotFoundException(id));
         emprestimoRepository.delete(existente);

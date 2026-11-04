@@ -1,80 +1,102 @@
 package com.biblioteca.filter;
 
+import com.biblioteca.exception.ErroHttpWriter;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.ConsumptionProbe;
+import io.github.bucket4j.Refill;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
-@Component
+/**
+ * Limite de requisições por cliente (IP), com token bucket (bucket4j).
+ * Cada cliente tem {@code capacidade} fichas, reabastecidas continuamente ao longo de {@code periodo}.
+ * Ao exceder, responde 429 com Retry-After. Baldes ociosos são removidos periodicamente.
+ */
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_REQUESTS = 10; // Limite de requisições por janela
-    private static final long WINDOW_DURATION_MS = 60_000; // Janela de 60 segundos (1 minuto)
+    private final Map<String, Entrada> baldes = new ConcurrentHashMap<>();
+    private final AtomicLong acessos = new AtomicLong();
+    private final long capacidade;
+    private final Duration periodo;
+    private final ErroHttpWriter erroHttpWriter;
 
-    private static class RequestTracker {
-        int count;
-        long startTime;
-
-        RequestTracker(long startTime) {
-            this.count = 1;
-            this.startTime = startTime;
-        }
+    public RateLimitFilter(long capacidade, Duration periodo, ErroHttpWriter erroHttpWriter) {
+        this.capacidade = capacidade;
+        this.periodo = periodo;
+        this.erroHttpWriter = erroHttpWriter;
     }
 
-    private final Map<String, RequestTracker> clientRequests = new ConcurrentHashMap<>();
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+    }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Identifica o cliente pelo IP ou chave de API
-        String clientKey = request.getHeader("X-API-Key");
-        if (clientKey == null || clientKey.isBlank()) {
-            clientKey = request.getRemoteAddr();
-        }
+        long agora = System.currentTimeMillis();
+        Entrada entrada = baldes.computeIfAbsent(request.getRemoteAddr(), ip -> new Entrada(criarBalde()));
+        entrada.ultimoAcesso = agora;
+        limparOciosos(agora);
 
-        long currentTime = System.currentTimeMillis();
-        RequestTracker tracker = clientRequests.get(clientKey);
+        ConsumptionProbe probe = entrada.balde.tryConsumeAndReturnRemaining(1);
+        long restantes = probe.getRemainingTokens();
 
-        if (tracker == null || (currentTime - tracker.startTime) > WINDOW_DURATION_MS) {
-            // Nova janela de tempo
-            tracker = new RequestTracker(currentTime);
-            clientRequests.put(clientKey, tracker);
-        } else {
-            // Incrementa contador na janela atual
-            tracker.count++;
-        }
+        response.setHeader("X-RateLimit-Limit", String.valueOf(capacidade));
+        response.setHeader("X-RateLimit-Remaining", String.valueOf(restantes));
 
-        long timeElapsed = currentTime - tracker.startTime;
-        long timeRemainingMs = WINDOW_DURATION_MS - timeElapsed;
-        long secondsUntilReset = Math.max(1, timeRemainingMs / 1000);
-
-        int remainingRequests = Math.max(0, MAX_REQUESTS - tracker.count);
-
-        // Define os cabeçalhos padrão de Rate Limit
-        response.setHeader("X-RateLimit-Limit", String.valueOf(MAX_REQUESTS));
-        response.setHeader("X-RateLimit-Remaining", String.valueOf(remainingRequests));
-        response.setHeader("X-RateLimit-Reset", String.valueOf(secondsUntilReset));
-
-        // Se excedeu o limite de requisições
-        if (tracker.count > MAX_REQUESTS) {
-            response.setStatus(429); // 429 Too Many Requests
-            response.setHeader("Retry-After", String.valueOf(secondsUntilReset));
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(String.format(
-                    "{\"erro\": \"Limite de requisições excedido. Tente novamente em %d segundos.\"}",
-                    secondsUntilReset
-            ));
+        if (probe.isConsumed()) {
+            long usadas = capacidade - restantes;
+            response.setHeader("X-RateLimit-Reset", String.valueOf(segundos(usadas * periodo.toNanos() / capacidade)));
+            filterChain.doFilter(request, response);
             return;
         }
 
-        filterChain.doFilter(request, response);
+        long espera = Math.max(1, segundos(probe.getNanosToWaitForRefill()));
+        response.setHeader("Retry-After", String.valueOf(espera));
+        response.setHeader("X-RateLimit-Reset", String.valueOf(espera));
+        erroHttpWriter.escrever(request, response, HttpStatus.TOO_MANY_REQUESTS,
+                "Limite de Requisições Excedido",
+                "Limite de " + capacidade + " requisições por " + periodo.toSeconds()
+                        + " segundos excedido. Tente novamente em " + espera + " segundo(s).");
+    }
+
+    private Bucket criarBalde() {
+        return Bucket.builder()
+                .addLimit(Bandwidth.classic(capacidade, Refill.greedy(capacidade, periodo)))
+                .build();
+    }
+
+    private void limparOciosos(long agora) {
+        if (acessos.incrementAndGet() % 500 == 0) {
+            long limite = periodo.toMillis() * 2;
+            baldes.values().removeIf(e -> agora - e.ultimoAcesso > limite);
+        }
+    }
+
+    private static long segundos(long nanos) {
+        return (long) Math.ceil(nanos / 1_000_000_000.0);
+    }
+
+    private static final class Entrada {
+        private final Bucket balde;
+        private volatile long ultimoAcesso;
+
+        Entrada(Bucket balde) {
+            this.balde = balde;
+            this.ultimoAcesso = System.currentTimeMillis();
+        }
     }
 }

@@ -2,23 +2,34 @@ package com.biblioteca.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.parameters.Parameter;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
+import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.method.HandlerMethod;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Configuration
 public class OpenApiConfig {
 
-    // --- GRUPO V1 (Exibe as rotas padrão, ocultando a gestão de chaves /api/keys) ---
     @Bean
     public GroupedOpenApi v1Api() {
         return GroupedOpenApi.builder()
@@ -29,7 +40,6 @@ public class OpenApiConfig {
                 .build();
     }
 
-    // --- GRUPO V2 (Exibe todas as rotas da API, incluindo recursos DTO e /api/keys) ---
     @Bean
     public GroupedOpenApi v2Api() {
         return GroupedOpenApi.builder()
@@ -37,6 +47,48 @@ public class OpenApiConfig {
                 .pathsToMatch("/**")
                 .addOpenApiCustomizer(openApi -> openApi.getInfo().setVersion("v2.0"))
                 .build();
+    }
+
+    /**
+     * Ajustes aplicados a todas as operações:
+     * - POST: cabeçalho X-Idempotency-Key e respostas 415 e 422.
+     * - Rotas públicas (GET /livros e /autores): sem exigência de chave na documentação.
+     * - Rotas protegidas: respostas 401 e 403. Todas: 429.
+     */
+    @Bean
+    public OperationCustomizer ajustesDeOperacao() {
+        return (Operation operation, HandlerMethod handlerMethod) -> {
+            if (operation.getResponses() == null) {
+                operation.setResponses(new ApiResponses());
+            }
+            String base = Optional.ofNullable(handlerMethod.getBeanType().getAnnotation(RequestMapping.class))
+                    .map(RequestMapping::value)
+                    .filter(valores -> valores.length > 0)
+                    .map(valores -> valores[0])
+                    .orElse("");
+            boolean publica = handlerMethod.hasMethodAnnotation(GetMapping.class)
+                    && (base.equals("/livros") || base.equals("/autores") || base.equals("/termos-de-uso"));
+
+            if (handlerMethod.hasMethodAnnotation(PostMapping.class)) {
+                addResposta(operation, "415", "Content-Type diferente de application/json.");
+                addResposta(operation, "422", "X-Idempotency-Key reutilizada com outro método, rota ou corpo.");
+            }
+
+            if (publica) {
+                operation.setSecurity(new ArrayList<>()); // sem cadeado no Swagger
+            } else {
+                addResposta(operation, "401", "Cabeçalho X-API-Key ausente, inválido ou inativo.");
+                addResposta(operation, "403", "A chave não tem permissão para esta operação (nível de acesso).");
+            }
+            addResposta(operation, "429", "Limite de requisições excedido. Consulte Retry-After e X-RateLimit-*.");
+            return operation;
+        };
+    }
+
+    private static void addResposta(Operation operation, String codigo, String descricao) {
+        if (!operation.getResponses().containsKey(codigo)) {
+            operation.getResponses().addApiResponse(codigo, new ApiResponse().description(descricao));
+        }
     }
 
     @Bean
@@ -52,230 +104,139 @@ public class OpenApiConfig {
                 .url("https://opensource.org/licenses/MIT");
 
         String description = """
-API REST desenvolvida em Java e Spring Boot para o gerenciamento de um ecossistema de biblioteca comunitária. O sistema contempla o controle completo de acervo bibliográfico, autores, leitores, endereços e o ciclo de vida transacional de empréstimos.
+                API REST em Java e Spring Boot para gerenciamento de uma biblioteca comunitária: acervo de livros e autores, usuários, endereços e empréstimos.
 
----
+                ---
 
-### Arquitetura e Padrões de Projeto
+                ### Autenticação por chave de API
 
-- **Formato de Dados:** Todas as requisições e respostas operam estritamente em `application/json` codificado em UTF-8.
+                Rotas protegidas exigem o cabeçalho `X-API-Key`. Sem chave, ou com chave inválida ou inativa, a resposta é `401`. Chave sem permissão para a operação recebe `403`.
 
+                | Rota | Acesso |
+                |---|---|
+                | `GET /livros`, `GET /autores` (e subrotas) | Público |
+                | Demais operações (`POST`, `PUT`, `PATCH`, `DELETE`, usuários, endereços, empréstimos) | Chave válida |
+                | `/api/keys/**` (gestão de chaves) | Chave de nível `ADMIN` |
 
+                Níveis de acesso:
+                - `ADMIN`: acesso total, inclusive a gestão de chaves.
+                - `OPERADOR`: leitura e escrita em todos os recursos, exceto a gestão de chaves.
+                - `LEITOR`: somente leitura (`GET`) nos recursos protegidos.
 
+                Chaves de desenvolvimento: `bib-chave-demo-12345` (ADMIN), `bib-operador-demo-12345` (OPERADOR) e `bib-leitor-demo-12345` (LEITOR). Novas chaves são geradas em `POST /api/keys`. A chave em texto puro é exibida apenas na criação; o servidor guarda somente o hash.
 
+                ---
 
-- **Persistência e Banco de Dados:** Utiliza Spring Data JPA com banco de dados em memória H2 (`jdbc:h2:mem:testdb`). Os dados inseridos em tempo de execução são redefinidos ao encerrar a aplicação.
+                ### Idempotência em operações POST
 
+                Envie `X-Idempotency-Key` para que um reenvio acidental (por exemplo, após queda de conexão) não execute a operação de novo.
 
+                - **Primeira requisição:** processada. Se concluída com sucesso (2xx), a resposta fica guardada por 24 horas.
+                - **Mesma chave, mesmo método, rota e corpo:** a resposta original é devolvida, com `Idempotent-Replayed: true`. Nada é criado de novo.
+                - **Mesma chave com método, rota ou corpo diferentes:** `422 Unprocessable Entity`.
+                - **Mesma chave com a primeira requisição ainda em andamento:** `409 Conflict`.
+                - **Requisição que falhou (4xx ou 5xx):** a chave não fica registrada, e o cliente pode tentar de novo.
 
+                ---
 
+                ### Versionamento da API
 
-- **Nível de Maturidade REST (HATEOAS):** As respostas incluem hipermídia dinâmica (`_links`) para facilitar a navegação entre recursos relacionados:
+                A versão é escolhida pelo cabeçalho `X-API-Version` em `GET /livros`:
 
+                - **Versão 1** (padrão, sem o cabeçalho, ou `1`): lista paginada no formato HATEOAS.
+                - **Versão 2** (`2`): lista paginada no formato `LivroV2DTO`, com metadados da versão.
 
+                Qualquer outro valor retorna `400`. As respostas trazem `X-API-Version` com a versão usada.
 
+                ---
 
+                ### Limite de requisições (rate limiting)
 
-- `self`: Acesso direto ao recurso consultado.
+                Cada IP pode fazer 60 requisições por minuto (configurável). Ao exceder, a resposta é `429 Too Many Requests`, com `Retry-After` indicando quantos segundos aguardar. Todas as respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`.
 
+                ---
 
+                ### CORS
 
+                Origens autorizadas (exatas): `http://localhost:3000`, `http://localhost:4200`, `http://localhost:8081` e `https://biblioteca-app.vercel.app`. Métodos permitidos: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`. Os cabeçalhos `Location`, `Retry-After`, `X-RateLimit-*`, `X-API-Version` e `Idempotent-Replayed` são expostos ao navegador.
 
+                ---
 
-- `livros` / `autores` / `usuarios` / `enderecos` / `emprestimos`: Links para coleções e entidades associadas.
+                ### Termos de uso
 
+                As condições de uso estão em `GET /termos-de-uso` (público), com a versão no cabeçalho `X-Termos-Versao`.
 
+                ---
 
+                ### Erros
 
+                Erros seguem um formato único: `timestamp`, `status`, `erro`, `mensagem`, `caminho` e, em validações, `campos` (erro por campo).
 
-- `devolver`: Operação específica vinculada ao fluxo de devolução de empréstimos ativos.
+                | Código | Quando ocorre |
+                |---|---|
+                | 200 OK | Consulta, atualização ou ação concluída. |
+                | 201 Created | Recurso criado (também na reprodução idempotente). |
+                | 204 No Content | Exclusão concluída. |
+                | 400 Bad Request | Validação, JSON malformado, parâmetro inválido ou versão de API não suportada. |
+                | 401 Unauthorized | `X-API-Key` ausente, inválida ou inativa. |
+                | 403 Forbidden | Chave sem permissão para a operação. |
+                | 404 Not Found | Recurso ou rota não encontrada. |
+                | 405 Method Not Allowed | Método HTTP não permitido na rota. |
+                | 409 Conflict | Regra de negócio ou integridade violada, ou requisição idempotente em andamento. |
+                | 415 Unsupported Media Type | `Content-Type` diferente de `application/json`. |
+                | 422 Unprocessable Entity | `X-Idempotency-Key` reutilizada com outro método, rota ou corpo. |
+                | 429 Too Many Requests | Limite de requisições excedido (ver `Retry-After`). |
+                | 500 Internal Server Error | Erro inesperado no servidor. |
 
+                ---
 
+                ### Ordem de cadastro
 
+                Por causa das chaves estrangeiras:
+                1. **Endereço** (`POST /enderecos`).
+                2. **Usuário** (`POST /usuarios`), que pode trazer um endereço aninhado.
+                3. **Autor** (`POST /autores`).
+                4. **Livro** (`POST /livros`), com os `id` dos autores existentes.
+                5. **Empréstimo** (`POST /emprestimos`), com os `id` de usuário e livro existentes.
 
+                Para excluir, siga a ordem inversa.
 
+                ---
 
----
+                ### Regras de negócio
 
-### Regras de Negócio e Automações
-
-- **Validação de Prazos e Devolução:** O registro de devolução (`PATCH /emprestimos/{id}/devolver`) altera o status do empréstimo diretamente para `DEVOLVIDO`. Tentativas de devolver empréstimos que já se encontram finalizados retornam `409 Conflict`.
-
-
-
-
-
-- **Campos e Datas:** A data do empréstimo aceita apenas valores presentes ou passados (`@PastOrPresent`). A data de devolução prevista pode ser informada opcionalmente no cadastro.
-
-
-
-
-
-
----
-
-### Ordem Lógica de Cadastro (Pré-requisitos e Dependências)
-
-Devido às restrições de chave estrangeira (`Foreign Key`) e integridade referencial do banco de dados, os cadastros via `POST` devem seguir uma ordem lógica estrita (FIFO):
-1. **Endereço (`POST /enderecos`)**: Pode ser cadastrado previamente para reutilização por múltiplos usuários.
-
-
-
-
-
-2. **Usuário (`POST /usuarios`)**: Aceita o vínculo com um endereço pré-existente (passando o `"id"`) ou com a criação de um novo endereço embutido no próprio payload.
-3. **Autor (`POST /autores`)**: Pode ser cadastrado antes dos livros para associação no acervo.
-4. **Livro (`POST /livros`)**: Pode receber uma lista com IDs de autores pré-existentes.
-5. **Empréstimo (`POST /emprestimos`)**: Exige IDs válidos de um usuário e de um livro já cadastrados.
-
----
-
-### Entidades e Relacionamentos
-
-O modelo de domínio é composto por cinco entidades principais e um enumerador de controle:
-- **Usuario e Endereco:** Relacionamento `One-to-One`.
-
-
-
-
-
-- **Usuario e Emprestimo:** Relacionamento `One-to-Many`.
-
-
-
-
-
-- **Livro e Autor:** Relacionamento `Many-to-Many` (livros podem ter múltiplos autores associados).
-
-
-
-
-
-- **Empréstimo e Livro:** Relacionamento `Many-to-One`.
-
-
-
-
-
-- **StatusEmprestimo (Enum):** Valores aceitos (`ATIVO`, `DEVOLVIDO`, `ATRASADO`).
-
-
-
-
-
-
----
-
-### Paginação e Consultas Personalizadas
-
-Para otimizar o tráfego de dados, as listagens gerais utilizam paginação padrão via `@ParameterObject Pageable`. Além disso, a API disponibiliza endpoints de busca especializada por parâmetros:
-- **Livros:** Busca por título.
-
-
-
-
-
-- **Autores:** Busca por nome.
-
-
-
-
-
-- **Usuários:** Busca por nome.
-
-
-
-
-
-- **Endereços:** Busca por cidade.
-
-
-
-
-
-- **Empréstimos:** Busca por status.
-
-
-
-
-
-
----
-
-### Validação de Dados e Tratamento de Erros
-
-- **Bean Validation:** Validação declarativa rigorosa nos payloads de entrada (campos obrigatórios, formatação e restrições de tamanho). Dados inválidos retornam `400 Bad Request`.
-
-
-
-
-
-- **Tratamento Global (`@ControllerAdvice`):** Centralização de exceções para padronizar mensagens descritivas de erro através da estrutura `ErroResponse`.
-
-
-
-
-
-
-| Código HTTP | Significado e Cenário de Aplicação |
-| :--- | :--- |
-| **200 OK** | Sucesso na recuperação, atualização ou execução de comandos. |
-| **201 Created** | Recurso criado com sucesso após envio de POST válido. |
-| **204 No Content** | Sucesso na execução (geralmente em DELETE), sem conteúdo de retorno no corpo. |
-| **400 Bad Request** | Erro de validação de dados ou requisição mal formatada. |
-| **401 Unauthorized** | Ausência ou chave de API inválida (cabeçalho X-API-Key). |
-| **404 Not Found** | O recurso solicitado não foi localizado na base de dados. |
-| **405 Method Not Allowed** | Método HTTP não permitido para a rota solicitada. |
-| **409 Conflict** | Violação de regra de negócio, restrição de integridade ou conflito de idempotência. |
-| **422 Unprocessable Entity** | Entidade não processável por requisição idempotente malformada ou dados inconsistentes. |
-| **429 Too Many Requests** | Limite de requisições excedido via Rate Limiting (cabeçalho Retry-After incluído). |
-| **500 Internal Server Error** | Erro inesperado no servidor ou falha interna. |
-
----
-
-### Ordem Lógica Exclusão
-
-Para testes manuais que respeitem as restrições de chave estrangeira ao apagar registos, elimine na ordem inversa da criação:
-1. `DELETE /emprestimos/{id}`
-
-
-
-
-
-2. `DELETE /livros/{id}`
-3. `DELETE /autores/{id}`
-4. `DELETE /usuarios/{id}`
-5. `DELETE /enderecos/{id}`
-""";
+                - **Devolução:** `PATCH /emprestimos/{id}/devolver` altera o status para `DEVOLVIDO`. Devolver um empréstimo já finalizado retorna `409`.
+                - **Empréstimo:** um livro não pode ter dois empréstimos ativos ao mesmo tempo (retorna `409`).
+                - **Datas:** a data do empréstimo não pode ser futura, e a devolução prevista não pode ser anterior ao empréstimo.
+                - **Ano de publicação:** não pode ser maior que o ano atual.
+                """;
 
         List<Tag> tags = List.of(
-                new Tag().name("Endereços").description("Gerenciamento de dados residenciais e localizações geográficas"),
-                new Tag().name("Usuários").description("Contas de leitores vinculadas a endereços cadastrados"),
-                new Tag().name("Autores").description("Cadastro e gestão de criadores de obras literárias"),
-                new Tag().name("Livros").description("Catálogo bibliográfico, paginação e vínculos de autoria"),
-                new Tag().name("Empréstimos").description("Controle operacional de prazos, fluxos e rotas de devolução via PATCH")
+                new Tag().name("Termos de Uso").description("Condições de uso da API (público)"),
+                new Tag().name("Chaves de API").description("Geração e gerenciamento de chaves de acesso. Exige chave ADMIN."),
+                new Tag().name("Endereços").description("Dados residenciais e localizações"),
+                new Tag().name("Usuários").description("Contas de leitores vinculadas a endereços"),
+                new Tag().name("Autores").description("Criadores das obras do acervo"),
+                new Tag().name("Livros").description("Catálogo bibliográfico, paginação, versionamento e autoria"),
+                new Tag().name("Empréstimos").description("Prazos, fluxos e devoluções de empréstimos")
         );
-
-        Server devServer = new Server()
-                .url("http://localhost:8080")
-                .description("Ambiente Local de Execução (Spring Boot)");
 
         return new OpenAPI()
                 .info(new Info()
                         .title("Gestão para Biblioteca Comunitária API")
-                        .version("v1.0")
+                        .version("v2.0")
                         .description(description)
                         .contact(contact)
-                        .license(license))
-                .servers(List.of(devServer))
+                        .license(license)
+                        .termsOfService("http://localhost:8080/termos-de-uso"))
+                .servers(List.of(new Server().url("http://localhost:8080").description("Ambiente local")))
                 .tags(tags)
                 .addSecurityItem(new SecurityRequirement().addList("X-API-Key"))
                 .components(new Components()
-                        .addSecuritySchemes("X-API-Key",
-                                new SecurityScheme()
-                                        .name("X-API-Key")
-                                        .type(SecurityScheme.Type.APIKEY)
-                                        .in(SecurityScheme.In.HEADER)
-                                        .description("Chave de autenticação da API (Exemplo: bib-chave-demo-12345)")));
+                        .addSecuritySchemes("X-API-Key", new SecurityScheme()
+                                .name("X-API-Key")
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .description("Chave de acesso à API. Desenvolvimento: bib-chave-demo-12345")));
     }
 }
