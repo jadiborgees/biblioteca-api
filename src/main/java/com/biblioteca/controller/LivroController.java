@@ -69,7 +69,7 @@ public class LivroController {
     private LivroModelAssembler assembler;
 
     // --- VERSIONAMENTO: Versão 1 (Padrão: quando X-API-Version não é informado ou é diferente de 2) ---
-    @GetMapping(headers = "!X-API-Version=2")
+    @GetMapping(headers = "X-API-Version!=2")
     @Operation(summary = "Listar livros (v1)", description = "Recupera uma lista paginada de todos os livros do acervo no formato padrão HATEOAS (Versão 1).")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista de livros recuperada com sucesso",
