@@ -1,3 +1,4 @@
+
 package com.biblioteca.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -6,13 +7,35 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "Termos de Uso", description = "Condições de uso da API. Acesso público.")
+@Tag(
+        name = "Termos de Uso",
+        description = "Condições de uso da API. Acesso público."
+)
+@ApiResponses(value = {
+        @ApiResponse(
+                responseCode = "405",
+                description = "Método HTTP não permitido para esta rota",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(type = "object")
+                )
+        ),
+        @ApiResponse(
+                responseCode = "500",
+                description = "Erro interno no servidor",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(type = "object")
+                )
+        )
+})
 public class TermosDeUsoController {
 
     public static final String VERSAO_TERMOS = "1.0";
@@ -37,14 +60,26 @@ public class TermosDeUsoController {
             8. Alterações. Estes termos podem ser atualizados. A versão vigente é indicada no cabeçalho X-Termos-Versao.
             """;
 
-    @GetMapping(value = "/termos-de-uso", produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8")
-    @Operation(summary = "Termos de uso da API",
-            description = "Retorna os termos de uso vigentes. Acesso público. A versão aparece no cabeçalho X-Termos-Versao.")
+    @GetMapping(
+            value = "/termos-de-uso",
+            produces = MediaType.TEXT_PLAIN_VALUE + ";charset=UTF-8"
+    )
+    @Operation(
+            summary = "Termos de uso da API",
+            description = "Retorna os termos de uso vigentes. Acesso público. A versão aparece no cabeçalho X-Termos-Versao."
+    )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Termos retornados com sucesso",
-                    content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Termos retornados com sucesso",
+                    content = @Content(
+                            mediaType = "text/plain",
+                            schema = @Schema(type = "string")
+                    )
+            )
     })
     public ResponseEntity<String> termosDeUso() {
+
         return ResponseEntity.ok()
                 .header("X-Termos-Versao", VERSAO_TERMOS)
                 .body(TEXTO);

@@ -1,3 +1,4 @@
+
 package com.biblioteca.service;
 
 import com.biblioteca.exception.ApiKeyNotFoundException;
@@ -24,24 +25,51 @@ public class ApiKeyService {
         this.repository = repository;
     }
 
-    /** Resultado da geração: a entidade persistida e a chave em texto puro (exibida uma única vez). */
+    /**
+     * Resultado da geração:
+     * entidade persistida e chave em texto puro (exibida uma única vez).
+     */
     public record ChaveGerada(ApiKey entidade, String chavePlana) {}
 
     public ChaveGerada gerar(String usuario, NivelAcesso nivel) {
         byte[] bytes = new byte[24];
         RANDOM.nextBytes(bytes);
+
         String chave = PREFIXO + HexFormat.of().formatHex(bytes);
-        ApiKey salva = repository.save(new ApiKey(HashUtil.sha256(chave), mascarar(chave), usuario, nivel));
+
+        ApiKey salva = repository.save(
+                new ApiKey(
+                        HashUtil.sha256(chave),
+                        mascarar(chave),
+                        usuario,
+                        nivel
+                )
+        );
+
         return new ChaveGerada(salva, chave);
     }
 
-    /** Usado para semear chaves conhecidas em ambiente de desenvolvimento. */
-    public ApiKey registrarChaveConhecida(String chave, String usuario, NivelAcesso nivel) {
-        return repository.save(new ApiKey(HashUtil.sha256(chave), mascarar(chave), usuario, nivel));
+    /**
+     * Usado para semear chaves conhecidas em ambiente de desenvolvimento.
+     * Evita cadastrar novamente uma chave que já existe no banco.
+     */
+    public ApiKey registrarChaveConhecida(
+            String chave,
+            String usuario,
+            NivelAcesso nivel
+    ) {
+        String hash = HashUtil.sha256(chave);
+
+        return repository.findByChaveHash(hash)
+                .orElseGet(() -> repository.save(
+                        new ApiKey(hash, mascarar(chave), usuario, nivel)
+                ));
     }
 
     public Optional<ApiKey> validar(String chavePlana) {
-        return repository.findByChaveHashAndAtivaTrue(HashUtil.sha256(chavePlana));
+        return repository.findByChaveHashAndAtivaTrue(
+                HashUtil.sha256(chavePlana)
+        );
     }
 
     public List<ApiKey> listar() {
@@ -51,6 +79,7 @@ public class ApiKeyService {
     public ApiKey alterarStatus(Long id, boolean ativa) {
         ApiKey apiKey = buscar(id);
         apiKey.setAtiva(ativa);
+
         return repository.save(apiKey);
     }
 
@@ -59,13 +88,17 @@ public class ApiKeyService {
     }
 
     private ApiKey buscar(Long id) {
-        return repository.findById(id).orElseThrow(() -> new ApiKeyNotFoundException(id));
+        return repository.findById(id)
+                .orElseThrow(() -> new ApiKeyNotFoundException(id));
     }
 
     public static String mascarar(String chave) {
         if (chave.length() <= 12) {
             return "****";
         }
-        return chave.substring(0, 8) + "..." + chave.substring(chave.length() - 4);
+
+        return chave.substring(0, 8)
+                + "..."
+                + chave.substring(chave.length() - 4);
     }
 }

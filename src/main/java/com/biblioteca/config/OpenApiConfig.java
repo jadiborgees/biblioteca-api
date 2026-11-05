@@ -1,33 +1,44 @@
 
 package com.biblioteca.config;
 
+import com.biblioteca.exception.ErroResponse;
+import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
+
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.method.HandlerMethod;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Configuration
 public class OpenApiConfig {
+
+    private static final String SCHEMA_ERRO =
+            "#/components/schemas/ErroResponse";
 
     @Bean
     public GroupedOpenApi v1Api() {
@@ -35,7 +46,8 @@ public class OpenApiConfig {
                 .group("v1 - Padrão HATEOAS")
                 .pathsToMatch("/**")
                 .pathsToExclude("/api/keys/**")
-                .addOpenApiCustomizer(openApi -> openApi.getInfo().setVersion("v1.0"))
+                .addOpenApiCustomizer(openApi ->
+                        openApi.getInfo().setVersion("v1.0"))
                 .build();
     }
 
@@ -44,60 +56,258 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("v2 - Completa com recursos DTO")
                 .pathsToMatch("/**")
-                .addOpenApiCustomizer(openApi -> openApi.getInfo().setVersion("v2.0"))
+                .pathsToExclude("/api/keys/**")
+                .addOpenApiCustomizer(openApi ->
+                        openApi.getInfo().setVersion("v2.0"))
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi apiKeysApi() {
+        return GroupedOpenApi.builder()
+                .group("Administração - Chaves de API")
+                .pathsToMatch("/api/keys/**")
                 .build();
     }
 
     @Bean
     public OperationCustomizer ajustesDeOperacao() {
+
         return (Operation operation, HandlerMethod handlerMethod) -> {
 
             if (operation.getResponses() == null) {
                 operation.setResponses(new ApiResponses());
             }
 
-            String base = Optional.ofNullable(
-                            handlerMethod.getBeanType().getAnnotation(RequestMapping.class))
-                    .map(RequestMapping::value)
-                    .filter(valores -> valores.length > 0)
-                    .map(valores -> valores[0])
-                    .orElse("");
+            String controller =
+                    handlerMethod.getBeanType().getSimpleName();
 
-            boolean publica = handlerMethod.hasMethodAnnotation(GetMapping.class)
-                    && (base.equals("/livros")
-                    || base.equals("/autores")
-                    || base.equals("/termos-de-uso"));
+            boolean get =
+                    handlerMethod.hasMethodAnnotation(GetMapping.class);
 
-            if (handlerMethod.hasMethodAnnotation(PostMapping.class)) {
-                addResposta(operation, "415",
-                        "Content-Type diferente de application/json.");
-                addResposta(operation, "422",
-                        "X-Idempotency-Key reutilizada com outro método, rota ou corpo.");
-            }
+            boolean post =
+                    handlerMethod.hasMethodAnnotation(PostMapping.class);
 
+            boolean put =
+                    handlerMethod.hasMethodAnnotation(PutMapping.class);
+
+            boolean patch =
+                    handlerMethod.hasMethodAnnotation(PatchMapping.class);
+
+            boolean delete =
+                    handlerMethod.hasMethodAnnotation(DeleteMapping.class);
+
+            boolean publica =
+                    (controller.equals("AuthController") && post)
+                            || (controller.equals("TermosDeUsoController") && get)
+                            || ((controller.equals("LivroController")
+                            || controller.equals("AutorController")) && get);
+
+            boolean escrita = post || put || patch || delete;
+
+            boolean recebeCorpo =
+                    List.of(handlerMethod.getMethodParameters())
+                            .stream()
+                            .anyMatch(parametro ->
+                                    parametro.hasParameterAnnotation(RequestBody.class));
+
+            boolean utilizaIdempotencia =
+                    post && !controller.equals("AuthController");
+
+            /*
+             * Rotas públicas não exigem X-API-Key.
+             * As demais herdam a segurança global da API.
+             */
             if (publica) {
                 operation.setSecurity(new ArrayList<>());
-            } else {
-                addResposta(operation, "401",
-                        "Cabeçalho X-API-Key ausente, inválido ou inativo.");
-                addResposta(operation, "403",
-                        "A chave não tem permissão para esta operação (nível de acesso).");
             }
 
-            addResposta(operation, "429",
-                    "Limite de requisições excedido. Consulte Retry-After e X-RateLimit-*.");
+            /*
+             * Erros comuns de requisição.
+             */
+            addRespostaErro(
+                    operation,
+                    "400",
+                    "Requisição inválida, dados de entrada ou parâmetros incorretos."
+            );
+
+            addRespostaErro(
+                    operation,
+                    "405",
+                    "Método HTTP não permitido para este recurso."
+            );
+
+            addRespostaErro(
+                    operation,
+                    "500",
+                    "Erro interno inesperado no servidor."
+            );
+
+            addRespostaErro(
+                    operation,
+                    "429",
+                    "Limite de requisições excedido. Consulte Retry-After e X-RateLimit-*."
+            );
+
+            /*
+             * Autenticação.
+             */
+            if (publica && controller.equals("AuthController")) {
+
+                addRespostaErro(
+                        operation,
+                        "401",
+                        "Credenciais de acesso inválidas."
+                );
+
+            } else if (!publica) {
+
+                addRespostaErro(
+                        operation,
+                        "401",
+                        "Cabeçalho X-API-Key ausente, inválido ou inativo."
+                );
+
+                if (controller.equals("ApiKeyController")) {
+
+                    addRespostaErro(
+                            operation,
+                            "403",
+                            "Acesso negado. É necessária uma chave de nível ADMIN."
+                    );
+
+                } else {
+
+                    addRespostaErro(
+                            operation,
+                            "403",
+                            "A chave de API não possui permissão para executar esta operação."
+                    );
+                }
+            }
+
+            /*
+             * Recursos que podem depender de IDs existentes.
+             */
+            boolean possuiParametroDeCaminho =
+                    operation.getParameters() != null
+                            && operation.getParameters().stream()
+                            .anyMatch(parametro ->
+                                    "path".equalsIgnoreCase(parametro.getIn()));
+
+            if (possuiParametroDeCaminho) {
+
+                addRespostaErro(
+                        operation,
+                        "404",
+                        "Recurso ou referência relacionada não encontrado."
+                );
+            }
+
+            /*
+             * Conflitos de negócio, integridade ou idempotência.
+             */
+            if (escrita) {
+
+                addRespostaErro(
+                        operation,
+                        "409",
+                        "Conflito de regra de negócio, integridade de dados ou requisição idempotente ainda em processamento."
+                );
+            }
+
+            /*
+             * Resposta 415 somente quando existe @RequestBody.
+             * Isso evita documentar 415 em PATCH sem corpo.
+             */
+            if (recebeCorpo) {
+
+                addRespostaErro(
+                        operation,
+                        "415",
+                        "Tipo de conteúdo não suportado. Utilize application/json."
+                );
+            }
+
+            /*
+             * Resposta 422 nas operações POST com idempotência.
+             * O login não utiliza esse mecanismo.
+             */
+            if (utilizaIdempotencia) {
+
+                addRespostaErro(
+                        operation,
+                        "422",
+                        "A X-Idempotency-Key foi reutilizada com outro método, rota ou corpo."
+                );
+            }
+
+            /*
+             * Garante que todas as respostas de erro existentes
+             * também apresentem o schema ErroResponse.
+             */
+            for (var entrada : operation.getResponses().entrySet()) {
+
+                String codigo = entrada.getKey();
+
+                if (codigo.matches("4\\d\\d|5\\d\\d")) {
+                    adicionarSchemaErro(entrada.getValue());
+                }
+            }
 
             return operation;
         };
     }
 
-    private static void addResposta(
-            Operation operation, String codigo, String descricao) {
+    private static void addRespostaErro(
+            Operation operation,
+            String codigo,
+            String descricao) {
 
-        if (!operation.getResponses().containsKey(codigo)) {
+        ApiResponse resposta = operation.getResponses().get(codigo);
+
+        if (resposta == null) {
+
+            resposta = new ApiResponse()
+                    .description(descricao);
+
             operation.getResponses().addApiResponse(
                     codigo,
-                    new ApiResponse().description(descricao)
+                    resposta
+            );
+
+        } else if (resposta.getDescription() == null
+                || resposta.getDescription().isBlank()) {
+
+            resposta.setDescription(descricao);
+        }
+
+        adicionarSchemaErro(resposta);
+    }
+
+    private static void adicionarSchemaErro(ApiResponse resposta) {
+
+        if (resposta.getContent() == null) {
+            resposta.setContent(new Content());
+        }
+
+        MediaType json =
+                resposta.getContent().get("application/json");
+
+        if (json == null) {
+
+            json = new MediaType();
+
+            resposta.getContent().addMediaType(
+                    "application/json",
+                    json
+            );
+        }
+
+        if (json.getSchema() == null) {
+
+            json.setSchema(
+                    new Schema<>().$ref(SCHEMA_ERRO)
             );
         }
     }
@@ -121,32 +331,38 @@ public class OpenApiConfig {
 
                 ### Autenticação por chave de API
 
-                Rotas protegidas exigem o cabeçalho `X-API-Key`. Sem chave, ou com chave inválida ou inativa, a resposta é `401`. Chave sem permissão para a operação recebe `403`.
+                Rotas protegidas exigem o cabeçalho `X-API-Key`.
+                Sem chave, ou com chave inválida ou inativa, a resposta é `401`.
+                Chave sem permissão para a operação recebe `403`.
 
                 | Rota | Acesso |
                 |---|---|
-                | `GET /livros`, `GET /autores` (e subrotas) | Público |
-                | Demais operações (`POST`, `PUT`, `PATCH`, `DELETE`, usuários, endereços, empréstimos) | Chave válida |
-                | `/api/keys/**` (gestão de chaves) | Chave de nível `ADMIN` |
+                | `POST /auth/login` | Público |
+                | `GET /livros` e subrotas | Público |
+                | `GET /autores` e subrotas | Público |
+                | `GET /termos-de-uso` | Público |
+                | Demais operações | Chave válida |
+                | `/api/keys/**` | Chave de nível `ADMIN` |
 
                 Níveis de acesso:
-                - `ADMIN`: acesso total, inclusive a gestão de chaves.
-                - `OPERADOR`: leitura e escrita em todos os recursos, exceto a gestão de chaves.
+                - `ADMIN`: acesso total, inclusive à gestão de chaves.
+                - `OPERADOR`: leitura e escrita nos recursos, exceto gestão de chaves.
                 - `LEITOR`: somente leitura (`GET`) nos recursos protegidos.
 
-                Chaves de desenvolvimento: `bib-chave-demo-12345` (ADMIN), `bib-operador-demo-12345` (OPERADOR) e `bib-leitor-demo-12345` (LEITOR). Novas chaves são geradas em `POST /api/keys`. A chave em texto puro é exibida apenas na criação; o servidor guarda somente o hash.
+                Novas chaves são geradas em `POST /api/keys`.
+                A chave em texto puro é exibida apenas na criação; o servidor guarda somente o hash.
 
                 ---
 
                 ### Idempotência em operações POST
 
-                Envie `X-Idempotency-Key` para que um reenvio acidental (por exemplo, após queda de conexão) não execute a operação de novo.
+                Envie `X-Idempotency-Key` para evitar que um reenvio acidental execute a operação novamente.
 
                 - **Primeira requisição:** processada. Se concluída com sucesso (2xx), a resposta fica guardada por 24 horas.
-                - **Mesma chave, mesmo método, rota e corpo:** a resposta original é devolvida, com `Idempotent-Replayed: true`. Nada é criado de novo.
+                - **Mesma chave, mesmo método, rota e corpo:** a resposta original é devolvida com `Idempotent-Replayed: true`.
                 - **Mesma chave com método, rota ou corpo diferentes:** `422 Unprocessable Entity`.
                 - **Mesma chave com a primeira requisição ainda em andamento:** `409 Conflict`.
-                - **Requisição que falhou (4xx ou 5xx):** a chave não fica registrada, e o cliente pode tentar de novo.
+                - **Requisição que falhou (4xx ou 5xx):** a chave não fica registrada, permitindo nova tentativa.
 
                 ---
 
@@ -154,22 +370,31 @@ public class OpenApiConfig {
 
                 A versão é escolhida pelo cabeçalho `X-API-Version` em `GET /livros`:
 
-                - **Versão 1** (padrão, sem o cabeçalho, ou `1`): lista paginada no formato HATEOAS.
-                - **Versão 2** (`2`): lista paginada no formato `LivroV2DTO`, com metadados da versão.
+                - **Versão 1:** padrão, sem o cabeçalho ou com valor `1`. Lista paginada no formato HATEOAS.
+                - **Versão 2:** valor `2`. Lista paginada no formato `LivroV2DTO`, com metadados da versão.
 
-                Qualquer outro valor retorna `400`. As respostas trazem `X-API-Version` com a versão usada.
+                Qualquer outro valor retorna `400`.
+                As respostas trazem `X-API-Version` com a versão utilizada.
 
                 ---
 
-                ### Limite de requisições (rate limiting)
+                ### Limite de requisições
 
-                Cada IP pode fazer 60 requisições por minuto (configurável). Ao exceder, a resposta é `429 Too Many Requests`, com `Retry-After` indicando quantos segundos aguardar. Todas as respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`.
+                Cada IP pode fazer 60 requisições por minuto, conforme configuração.
+                Ao exceder, a resposta é `429 Too Many Requests`, com `Retry-After` indicando quantos segundos aguardar.
+
+                As respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`.
 
                 ---
 
                 ### CORS
 
-                Origens autorizadas (exatas): `http://localhost:3000`, `http://localhost:4200`, `http://localhost:8081` e `https://biblioteca-app.vercel.app`. Métodos permitidos: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`. Os cabeçalhos `Location`, `Retry-After`, `X-RateLimit-*`, `X-API-Version` e `Idempotent-Replayed` são expostos ao navegador.
+                Origens autorizadas são configuradas em `biblioteca.cors.allowed-origins`.
+                Incluem os ambientes locais, o domínio de produção do frontend e os domínios de preview configurados no Vercel.
+
+                Métodos permitidos: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` e `OPTIONS`.
+
+                Os cabeçalhos `Location`, `Retry-After`, `X-RateLimit-*`, `X-API-Version` e `Idempotent-Replayed` são expostos ao navegador.
 
                 ---
 
@@ -179,25 +404,32 @@ public class OpenApiConfig {
 
                 ---
 
-                ### Erros
+                ### Formato das respostas de erro
 
-                Erros seguem um formato único: `timestamp`, `status`, `erro`, `mensagem`, `caminho` e, em validações, `campos` (erro por campo).
+                As respostas de erro utilizam o schema `ErroResponse`, com os campos:
 
-                | Código | Quando ocorre |
+                - `timestamp`: data e hora do erro.
+                - `status`: código HTTP.
+                - `erro`: identificação do tipo de erro.
+                - `mensagem`: descrição do problema.
+                - `caminho`: caminho da requisição.
+                - `campos`: detalhes de validação por campo, quando aplicável.
+
+                | Código | Significado |
                 |---|---|
-                | 200 OK | Consulta, atualização ou ação concluída. |
-                | 201 Created | Recurso criado (também na reprodução idempotente). |
-                | 204 No Content | Exclusão concluída. |
-                | 400 Bad Request | Validação, JSON malformado, parâmetro inválido ou versão de API não suportada. |
-                | 401 Unauthorized | `X-API-Key` ausente, inválida ou inativa. |
-                | 403 Forbidden | Chave sem permissão para a operação. |
-                | 404 Not Found | Recurso ou rota não encontrada. |
-                | 405 Method Not Allowed | Método HTTP não permitido na rota. |
-                | 409 Conflict | Regra de negócio ou integridade violada, ou requisição idempotente em andamento. |
-                | 415 Unsupported Media Type | `Content-Type` diferente de `application/json`. |
-                | 422 Unprocessable Entity | `X-Idempotency-Key` reutilizada com outro método, rota ou corpo. |
-                | 429 Too Many Requests | Limite de requisições excedido (ver `Retry-After`). |
-                | 500 Internal Server Error | Erro inesperado no servidor. |
+                | 200 | OK — operação concluída. |
+                | 201 | Created — recurso criado. |
+                | 204 | No Content — exclusão concluída. |
+                | 400 | Bad Request — dados ou parâmetros inválidos. |
+                | 401 | Unauthorized — autenticação ausente ou inválida. |
+                | 403 | Forbidden — permissão insuficiente. |
+                | 404 | Not Found — recurso não encontrado. |
+                | 405 | Method Not Allowed — método não permitido. |
+                | 409 | Conflict — conflito de negócio, integridade ou idempotência em andamento. |
+                | 415 | Unsupported Media Type — tipo de conteúdo não suportado. |
+                | 422 | Unprocessable Entity — chave de idempotência reutilizada com dados diferentes. |
+                | 429 | Too Many Requests — limite de requisições excedido. |
+                | 500 | Internal Server Error — erro inesperado. |
 
                 ---
 
@@ -207,8 +439,8 @@ public class OpenApiConfig {
                 1. **Endereço** (`POST /enderecos`).
                 2. **Usuário** (`POST /usuarios`), que pode trazer um endereço aninhado.
                 3. **Autor** (`POST /autores`).
-                4. **Livro** (`POST /livros`), com os `id` dos autores existentes.
-                5. **Empréstimo** (`POST /emprestimos`), com os `id` de usuário e livro existentes.
+                4. **Livro** (`POST /livros`), com os IDs dos autores existentes.
+                5. **Empréstimo** (`POST /emprestimos`), com os IDs de usuário e livro existentes.
 
                 Para excluir, siga a ordem inversa.
 
@@ -217,7 +449,7 @@ public class OpenApiConfig {
                 ### Regras de negócio
 
                 - **Devolução:** `PATCH /emprestimos/{id}/devolver` altera o status para `DEVOLVIDO`. Devolver um empréstimo já finalizado retorna `409`.
-                - **Empréstimo:** um livro não pode ter dois empréstimos ativos ao mesmo tempo (retorna `409`).
+                - **Empréstimo:** um livro não pode ter dois empréstimos ativos ao mesmo tempo.
                 - **Datas:** a data do empréstimo não pode ser futura, e a devolução prevista não pode ser anterior ao empréstimo.
                 - **Ano de publicação:** não pode ser maior que o ano atual.
                 """;
@@ -225,6 +457,8 @@ public class OpenApiConfig {
         List<Tag> tags = List.of(
                 new Tag().name("Termos de Uso")
                         .description("Condições de uso da API (público)"),
+                new Tag().name("Autenticação")
+                        .description("Login e autenticação de usuários"),
                 new Tag().name("Chaves de API")
                         .description("Geração e gerenciamento de chaves de acesso. Exige chave ADMIN."),
                 new Tag().name("Endereços")
@@ -238,6 +472,22 @@ public class OpenApiConfig {
                 new Tag().name("Empréstimos")
                         .description("Prazos, fluxos e devoluções de empréstimos")
         );
+
+        Components componentes = new Components()
+                .addSecuritySchemes("X-API-Key", new SecurityScheme()
+                        .name("X-API-Key")
+                        .type(SecurityScheme.Type.APIKEY)
+                        .in(SecurityScheme.In.HEADER)
+                        .description("Chave de acesso à API enviada no cabeçalho X-API-Key."));
+
+        /*
+         * Registra automaticamente o modelo ErroResponse
+         * como schema reutilizável no Swagger.
+         */
+        ModelConverters.getInstance()
+                .read(ErroResponse.class)
+                .forEach((nome, schema) ->
+                        componentes.addSchemas(nome, schema));
 
         return new OpenAPI()
                 .info(new Info()
@@ -254,11 +504,6 @@ public class OpenApiConfig {
                 ))
                 .tags(tags)
                 .addSecurityItem(new SecurityRequirement().addList("X-API-Key"))
-                .components(new Components()
-                        .addSecuritySchemes("X-API-Key", new SecurityScheme()
-                                .name("X-API-Key")
-                                .type(SecurityScheme.Type.APIKEY)
-                                .in(SecurityScheme.In.HEADER)
-                                .description("Chave de acesso à API. Desenvolvimento: bib-chave-demo-12345")));
+                .components(componentes);
     }
 }

@@ -33,7 +33,6 @@ public class LoadDatabase {
             apiKeyService.registrarChaveConhecida("bib-chave-demo-12345", "joao@email.com", NivelAcesso.ADMIN);
             apiKeyService.registrarChaveConhecida("bib-operador-demo-12345", "operador@biblioteca.com", NivelAcesso.OPERADOR);
             apiKeyService.registrarChaveConhecida("bib-leitor-demo-12345", "leitor@biblioteca.com", NivelAcesso.LEITOR);
-            log.info("Chaves de desenvolvimento: ADMIN=bib-chave-demo-12345, OPERADOR=bib-operador-demo-12345, LEITOR=bib-leitor-demo-12345");
 
             // ---------- Autores ----------
             Autor machado = autor(autorRepository, "Machado de Assis", "Brasileira");
@@ -114,12 +113,17 @@ public class LoadDatabase {
     }
 
     private static Livro livro(LivroRepository repo, String titulo, String isbn, int ano, Autor... autores) {
-        Livro livro = new Livro();
-        livro.setTitulo(titulo);
-        livro.setIsbn(isbn);
-        livro.setAnoPublicacao(ano);
-        livro.setAutores(new HashSet<>(Arrays.asList(autores)));
-        return repo.save(livro);
+
+        return repo.findByIsbn(isbn)
+                .orElseGet(() -> {
+                    Livro livro = new Livro();
+                    livro.setTitulo(titulo);
+                    livro.setIsbn(isbn);
+                    livro.setAnoPublicacao(ano);
+                    livro.setAutores(new HashSet<>(Arrays.asList(autores)));
+
+                    return repo.save(livro);
+                });
     }
 
     private static Endereco endereco(String logradouro, String numero, String bairro,
@@ -134,16 +138,28 @@ public class LoadDatabase {
         return endereco;
     }
 
-    private static Usuario usuario(UsuarioRepository repo, String nome, String email, String telefone,
-                                   LocalDate nascimento, Endereco endereco) {
-        Usuario usuario = new Usuario();
-        usuario.setNome(nome);
-        usuario.setEmail(email);
-        usuario.setTelefone(telefone);
-        usuario.setDataNascimento(nascimento);
-        usuario.setEndereco(endereco);
-        return repo.save(usuario);
+
+    private static Usuario usuario(
+            UsuarioRepository repo,
+            String nome,
+            String email,
+            String telefone,
+            LocalDate nascimento,
+            Endereco endereco
+    ) {
+        return repo.findByEmail(email)
+                .orElseGet(() -> {
+                    Usuario usuario = new Usuario();
+                    usuario.setNome(nome);
+                    usuario.setEmail(email);
+                    usuario.setTelefone(telefone);
+                    usuario.setDataNascimento(nascimento);
+                    usuario.setEndereco(endereco);
+
+                    return repo.save(usuario);
+                });
     }
+
 
     private static void emprestimo(EmprestimoRepository repo, Usuario usuario, Livro livro,
                                    LocalDate dataEmprestimo, LocalDate dataPrevista,
