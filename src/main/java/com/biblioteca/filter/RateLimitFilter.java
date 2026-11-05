@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Limite de requisições por cliente (IP), com token bucket (bucket4j).
+ *
  * Cada cliente tem {@code capacidade} fichas, reabastecidas continuamente ao longo de {@code periodo}.
  * Ao exceder, responde 429 com Retry-After. Baldes ociosos são removidos periodicamente.
  */
@@ -59,6 +60,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if (probe.isConsumed()) {
             long usadas = capacidade - restantes;
+
             response.setHeader("X-RateLimit-Reset", String.valueOf(segundos(usadas * periodo.toNanos() / capacidade)));
             filterChain.doFilter(request, response);
             return;
@@ -82,7 +84,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private void limparOciosos(long agora) {
         if (acessos.incrementAndGet() % 500 == 0) {
             long limite = periodo.toMillis() * 2;
-            baldes.values().removeIf(e -> agora - e.ultimoAcesso > limite);
+            baldes.values().removeIf(e -> (agora - e.ultimoAcesso) > limite);
         }
     }
 
