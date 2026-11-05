@@ -30,6 +30,7 @@ public class Usuario {
     @NotBlank(message = "O nome é obrigatório.")
     @Size(min = 2, max = 100,
             message = "O nome deve ter entre 2 e 100 caracteres.")
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Nome completo do usuário.",
             example = "João da Silva",
@@ -43,7 +44,7 @@ public class Usuario {
     @Email(message = "Forneça um endereço de e-mail válido.")
     @Size(min = 5, max = 254,
             message = "O e-mail deve ter entre 5 e 254 caracteres.")
-    @Column(unique = true, length = 254)
+    @Column(nullable = false, unique = true, length = 254)
     @Schema(
             description = "Endereço de e-mail do usuário. Deve ser válido e exclusivo.",
             example = "joao.silva@email.com",
@@ -60,6 +61,7 @@ public class Usuario {
     )
     @Size(max = 15,
             message = "O telefone deve ter no máximo 15 caracteres.")
+    @Column(length = 15)
     @Schema(
             description = "Telefone de contato com DDD. Campo opcional.",
             example = "11999998888",
@@ -72,6 +74,7 @@ public class Usuario {
 
     @NotNull(message = "A data de nascimento é obrigatória.")
     @Past(message = "A data de nascimento deve ser uma data no passado.")
+    @Column(nullable = false)
     @Schema(
             description = "Data de nascimento do usuário. Deve ser anterior à data atual.",
             example = "1998-05-20",
@@ -92,7 +95,7 @@ public class Usuario {
     @JsonIgnore
     @OneToMany(mappedBy = "usuario")
     @Schema(
-            description = "Lista de empréstimos associados ao usuário. Não é exibida diretamente na serialização JSON.",
+            description = "Lista de empréstimos associados ao usuário.",
             accessMode = Schema.AccessMode.READ_ONLY,
             hidden = true
     )

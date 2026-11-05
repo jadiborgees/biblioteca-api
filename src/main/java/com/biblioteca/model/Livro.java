@@ -31,6 +31,7 @@ public class Livro {
             max = 150,
             message = "O título deve ter entre 2 e 150 caracteres."
     )
+    @Column(nullable = false, length = 150)
     @Schema(
             description = "Título completo do livro.",
             example = "O Alienista",
@@ -45,7 +46,7 @@ public class Livro {
             regexp = "^(?:\\d{9}[\\dX]|\\d{13})$",
             message = "O ISBN deve ter 13 dígitos numéricos ou 10 caracteres (aceitando 'X' no último dígito)."
     )
-    @Column(unique = true)
+    @Column(nullable = false, unique = true, length = 13)
     @Schema(
             description = "Código ISBN-10 ou ISBN-13 do livro. Deve ser único no acervo.",
             example = "9786555520012",
@@ -58,6 +59,7 @@ public class Livro {
 
     @NotNull(message = "O ano de publicação é obrigatório.")
     @Min(value = 1000, message = "Ano de publicação inválido.")
+    @Column(nullable = false)
     @Schema(
             description = "Ano de publicação do livro. Deve ser igual ou superior a 1000.",
             example = "1882",

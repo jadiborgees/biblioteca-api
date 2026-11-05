@@ -25,6 +25,7 @@ public class Endereco {
     @NotBlank(message = "O logradouro é obrigatório.")
     @Size(min = 2, max = 150,
             message = "O logradouro deve ter entre 2 e 150 caracteres.")
+    @Column(nullable = false, length = 150)
     @Schema(
             description = "Nome da rua, avenida, travessa ou outro tipo de logradouro.",
             example = "Avenida Paulista",
@@ -37,6 +38,7 @@ public class Endereco {
     @NotBlank(message = "O número é obrigatório.")
     @Size(min = 1, max = 20,
             message = "O número deve ter entre 1 e 20 caracteres.")
+    @Column(nullable = false, length = 20)
     @Schema(
             description = "Número do imóvel. Aceita valores como número, S/N ou bloco.",
             example = "123",
@@ -48,6 +50,7 @@ public class Endereco {
 
     @Size(max = 100,
             message = "O complemento deve ter no máximo 100 caracteres.")
+    @Column(length = 100)
     @Schema(
             description = "Complemento do endereço, como apartamento, bloco ou sala. Campo opcional.",
             example = "Apartamento 42, Bloco B",
@@ -59,6 +62,7 @@ public class Endereco {
     @NotBlank(message = "O bairro é obrigatório.")
     @Size(min = 2, max = 100,
             message = "O bairro deve ter entre 2 e 100 caracteres.")
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Bairro onde o imóvel está localizado.",
             example = "Bela Vista",
@@ -71,6 +75,7 @@ public class Endereco {
     @NotBlank(message = "A cidade é obrigatória.")
     @Size(min = 2, max = 100,
             message = "A cidade deve ter entre 2 e 100 caracteres.")
+    @Column(nullable = false, length = 100)
     @Schema(
             description = "Município onde o imóvel está localizado.",
             example = "São Paulo",
@@ -87,6 +92,7 @@ public class Endereco {
             regexp = "^[A-Za-z]{2}$",
             message = "O estado deve conter exatamente 2 letras."
     )
+    @Column(nullable = false, length = 2)
     @Schema(
             description = "Sigla da unidade federativa brasileira, com exatamente duas letras.",
             example = "SP",
@@ -102,6 +108,7 @@ public class Endereco {
             regexp = "^\\d{5}-?\\d{3}$",
             message = "O CEP deve estar no formato 00000-000."
     )
+    @Column(nullable = false, length = 9)
     @Schema(
             description = "Código de Endereçamento Postal (CEP). Aceita os formatos 00000-000 ou 00000000.",
             example = "01310-100",
@@ -113,8 +120,6 @@ public class Endereco {
     private String cep;
 
     public Endereco() {}
-
-    // Getters e Setters
 
     public Long getId() {
         return id;

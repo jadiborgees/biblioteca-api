@@ -1,3 +1,4 @@
+
 package com.biblioteca;
 
 import com.biblioteca.model.*;
@@ -29,10 +30,12 @@ public class LoadDatabase {
         return args -> {
             log.info("Carregando dados de teste no H2...");
 
-            // Chaves de desenvolvimento, uma por nível de acesso (NÃO usar em produção)
-            apiKeyService.registrarChaveConhecida("bib-chave-demo-12345", "joao@email.com", NivelAcesso.ADMIN);
-            apiKeyService.registrarChaveConhecida("bib-operador-demo-12345", "operador@biblioteca.com", NivelAcesso.OPERADOR);
-            apiKeyService.registrarChaveConhecida("bib-leitor-demo-12345", "leitor@biblioteca.com", NivelAcesso.LEITOR);
+            // Chave administrativa de desenvolvimento (não usar em produção)
+            apiKeyService.registrarChaveConhecida(
+                    "bib-chave-demo-12345",
+                    "joao@email.com",
+                    NivelAcesso.ADMIN
+            );
 
             // ---------- Autores ----------
             Autor machado = autor(autorRepository, "Machado de Assis", "Brasileira");
@@ -46,7 +49,7 @@ public class LoadDatabase {
             Autor drummond = autor(autorRepository, "Carlos Drummond de Andrade", "Brasileira");
             Autor cecilia = autor(autorRepository, "Cecília Meireles", "Brasileira");
 
-            // ---------- Livros (ISBNs de exemplo, apenas para demonstração) ----------
+            // ---------- Livros ----------
             Livro domCasmurro = livro(livroRepository, "Dom Casmurro", "9788535902778", 1899, machado);
             Livro bras = livro(livroRepository, "Memórias Póstumas de Brás Cubas", "9788535914047", 1881, machado);
             Livro quincas = livro(livroRepository, "Quincas Borba", "9788508041534", 1891, machado);
@@ -65,26 +68,43 @@ public class LoadDatabase {
             Livro romanceiro = livro(livroRepository, "Romanceiro da Inconfidência", "9788526009363", 1953, cecilia);
 
             // ---------- Usuários ----------
-            Usuario joao = usuario(usuarioRepository, "João Silva", "joao@email.com", "(11)99999-8888",
+            Usuario joao = usuario(
+                    usuarioRepository, "João Silva", "joao@email.com", "(11)99999-8888",
                     LocalDate.of(1990, 5, 15),
-                    endereco("Rua das Flores", "123", "Centro", "São Paulo", "SP", "01001-000"));
-            Usuario maria = usuario(usuarioRepository, "Maria Santos", "maria@email.com", "(11)97777-6666",
-                    LocalDate.of(1998, 11, 20),
-                    endereco("Av. Paulista", "1000", "Bela Vista", "São Paulo", "SP", "01310-100"));
-            Usuario pedro = usuario(usuarioRepository, "Pedro Oliveira", "pedro@email.com", "(11)95555-4444",
-                    LocalDate.of(1985, 3, 8),
-                    endereco("Rua Augusta", "850", "Consolação", "São Paulo", "SP", "01304-001"));
-            Usuario ana = usuario(usuarioRepository, "Ana Costa", "ana@email.com", "(11)94444-3333",
-                    LocalDate.of(2001, 7, 25),
-                    endereco("Rua dos Pinheiros", "420", "Pinheiros", "São Paulo", "SP", "05422-001"));
-            Usuario carlos = usuario(usuarioRepository, "Carlos Souza", "carlos@email.com", "(11)93333-2222",
-                    LocalDate.of(1978, 12, 2),
-                    endereco("Av. Eng. Eusébio Stevaux", "300", "Santo Amaro", "São Paulo", "SP", "04696-000"));
-            Usuario juliana = usuario(usuarioRepository, "Juliana Lima", "juliana@email.com", "(11)92222-1111",
-                    LocalDate.of(1993, 9, 18),
-                    endereco("Rua XV de Novembro", "55", "Centro", "Taboão da Serra", "SP", "06763-000"));
+                    endereco("Rua das Flores", "123", "Centro", "São Paulo", "SP", "01001-000")
+            );
 
-            // ---------- Empréstimos (um livro não pode ter dois empréstimos em aberto) ----------
+            Usuario maria = usuario(
+                    usuarioRepository, "Maria Santos", "maria@email.com", "(11)97777-6666",
+                    LocalDate.of(1998, 11, 20),
+                    endereco("Av. Paulista", "1000", "Bela Vista", "São Paulo", "SP", "01310-100")
+            );
+
+            Usuario pedro = usuario(
+                    usuarioRepository, "Pedro Oliveira", "pedro@email.com", "(11)95555-4444",
+                    LocalDate.of(1985, 3, 8),
+                    endereco("Rua Augusta", "850", "Consolação", "São Paulo", "SP", "01304-001")
+            );
+
+            Usuario ana = usuario(
+                    usuarioRepository, "Ana Costa", "ana@email.com", "(11)94444-3333",
+                    LocalDate.of(2001, 7, 25),
+                    endereco("Rua dos Pinheiros", "420", "Pinheiros", "São Paulo", "SP", "05422-001")
+            );
+
+            Usuario carlos = usuario(
+                    usuarioRepository, "Carlos Souza", "carlos@email.com", "(11)93333-2222",
+                    LocalDate.of(1978, 12, 2),
+                    endereco("Av. Eng. Eusébio Stevaux", "300", "Santo Amaro", "São Paulo", "SP", "04696-000")
+            );
+
+            Usuario juliana = usuario(
+                    usuarioRepository, "Juliana Lima", "juliana@email.com", "(11)92222-1111",
+                    LocalDate.of(1993, 9, 18),
+                    endereco("Rua XV de Novembro", "55", "Centro", "Taboão da Serra", "SP", "06763-000")
+            );
+
+            // ---------- Empréstimos ----------
             LocalDate hoje = LocalDate.now();
 
             // Em andamento
@@ -112,7 +132,12 @@ public class LoadDatabase {
         return repo.save(autor);
     }
 
-    private static Livro livro(LivroRepository repo, String titulo, String isbn, int ano, Autor... autores) {
+    private static Livro livro(
+            LivroRepository repo,
+            String titulo,
+            String isbn,
+            int ano,
+            Autor... autores) {
 
         return repo.findByIsbn(isbn)
                 .orElseGet(() -> {
@@ -126,8 +151,14 @@ public class LoadDatabase {
                 });
     }
 
-    private static Endereco endereco(String logradouro, String numero, String bairro,
-                                     String cidade, String estado, String cep) {
+    private static Endereco endereco(
+            String logradouro,
+            String numero,
+            String bairro,
+            String cidade,
+            String estado,
+            String cep) {
+
         Endereco endereco = new Endereco();
         endereco.setLogradouro(logradouro);
         endereco.setNumero(numero);
@@ -135,9 +166,9 @@ public class LoadDatabase {
         endereco.setCidade(cidade);
         endereco.setEstado(estado);
         endereco.setCep(cep);
+
         return endereco;
     }
-
 
     private static Usuario usuario(
             UsuarioRepository repo,
@@ -145,8 +176,8 @@ public class LoadDatabase {
             String email,
             String telefone,
             LocalDate nascimento,
-            Endereco endereco
-    ) {
+            Endereco endereco) {
+
         return repo.findByEmail(email)
                 .orElseGet(() -> {
                     Usuario usuario = new Usuario();
@@ -160,10 +191,15 @@ public class LoadDatabase {
                 });
     }
 
+    private static void emprestimo(
+            EmprestimoRepository repo,
+            Usuario usuario,
+            Livro livro,
+            LocalDate dataEmprestimo,
+            LocalDate dataPrevista,
+            LocalDate dataDevolucao,
+            StatusEmprestimo status) {
 
-    private static void emprestimo(EmprestimoRepository repo, Usuario usuario, Livro livro,
-                                   LocalDate dataEmprestimo, LocalDate dataPrevista,
-                                   LocalDate dataDevolucao, StatusEmprestimo status) {
         Emprestimo emprestimo = new Emprestimo();
         emprestimo.setUsuario(usuario);
         emprestimo.setLivro(livro);
@@ -171,6 +207,7 @@ public class LoadDatabase {
         emprestimo.setDataDevolucaoPrevista(dataPrevista);
         emprestimo.setDataDevolucao(dataDevolucao);
         emprestimo.setStatus(status);
+
         repo.save(emprestimo);
     }
 }
