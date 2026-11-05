@@ -1,3 +1,4 @@
+
 package com.biblioteca.config;
 
 import io.swagger.v3.oas.models.Components;
@@ -6,8 +7,6 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
-import io.swagger.v3.oas.models.media.StringSchema;
-import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -49,45 +48,57 @@ public class OpenApiConfig {
                 .build();
     }
 
-    /**
-     * Ajustes aplicados a todas as operações:
-     * - POST: cabeçalho X-Idempotency-Key e respostas 415 e 422.
-     * - Rotas públicas (GET /livros e /autores): sem exigência de chave na documentação.
-     * - Rotas protegidas: respostas 401 e 403. Todas: 429.
-     */
     @Bean
     public OperationCustomizer ajustesDeOperacao() {
         return (Operation operation, HandlerMethod handlerMethod) -> {
+
             if (operation.getResponses() == null) {
                 operation.setResponses(new ApiResponses());
             }
-            String base = Optional.ofNullable(handlerMethod.getBeanType().getAnnotation(RequestMapping.class))
+
+            String base = Optional.ofNullable(
+                            handlerMethod.getBeanType().getAnnotation(RequestMapping.class))
                     .map(RequestMapping::value)
                     .filter(valores -> valores.length > 0)
                     .map(valores -> valores[0])
                     .orElse("");
+
             boolean publica = handlerMethod.hasMethodAnnotation(GetMapping.class)
-                    && (base.equals("/livros") || base.equals("/autores") || base.equals("/termos-de-uso"));
+                    && (base.equals("/livros")
+                    || base.equals("/autores")
+                    || base.equals("/termos-de-uso"));
 
             if (handlerMethod.hasMethodAnnotation(PostMapping.class)) {
-                addResposta(operation, "415", "Content-Type diferente de application/json.");
-                addResposta(operation, "422", "X-Idempotency-Key reutilizada com outro método, rota ou corpo.");
+                addResposta(operation, "415",
+                        "Content-Type diferente de application/json.");
+                addResposta(operation, "422",
+                        "X-Idempotency-Key reutilizada com outro método, rota ou corpo.");
             }
 
             if (publica) {
-                operation.setSecurity(new ArrayList<>()); // sem cadeado no Swagger
+                operation.setSecurity(new ArrayList<>());
             } else {
-                addResposta(operation, "401", "Cabeçalho X-API-Key ausente, inválido ou inativo.");
-                addResposta(operation, "403", "A chave não tem permissão para esta operação (nível de acesso).");
+                addResposta(operation, "401",
+                        "Cabeçalho X-API-Key ausente, inválido ou inativo.");
+                addResposta(operation, "403",
+                        "A chave não tem permissão para esta operação (nível de acesso).");
             }
-            addResposta(operation, "429", "Limite de requisições excedido. Consulte Retry-After e X-RateLimit-*.");
+
+            addResposta(operation, "429",
+                    "Limite de requisições excedido. Consulte Retry-After e X-RateLimit-*.");
+
             return operation;
         };
     }
 
-    private static void addResposta(Operation operation, String codigo, String descricao) {
+    private static void addResposta(
+            Operation operation, String codigo, String descricao) {
+
         if (!operation.getResponses().containsKey(codigo)) {
-            operation.getResponses().addApiResponse(codigo, new ApiResponse().description(descricao));
+            operation.getResponses().addApiResponse(
+                    codigo,
+                    new ApiResponse().description(descricao)
+            );
         }
     }
 
@@ -212,13 +223,20 @@ public class OpenApiConfig {
                 """;
 
         List<Tag> tags = List.of(
-                new Tag().name("Termos de Uso").description("Condições de uso da API (público)"),
-                new Tag().name("Chaves de API").description("Geração e gerenciamento de chaves de acesso. Exige chave ADMIN."),
-                new Tag().name("Endereços").description("Dados residenciais e localizações"),
-                new Tag().name("Usuários").description("Contas de leitores vinculadas a endereços"),
-                new Tag().name("Autores").description("Criadores das obras do acervo"),
-                new Tag().name("Livros").description("Catálogo bibliográfico, paginação, versionamento e autoria"),
-                new Tag().name("Empréstimos").description("Prazos, fluxos e devoluções de empréstimos")
+                new Tag().name("Termos de Uso")
+                        .description("Condições de uso da API (público)"),
+                new Tag().name("Chaves de API")
+                        .description("Geração e gerenciamento de chaves de acesso. Exige chave ADMIN."),
+                new Tag().name("Endereços")
+                        .description("Dados residenciais e localizações"),
+                new Tag().name("Usuários")
+                        .description("Contas de leitores vinculadas a endereços"),
+                new Tag().name("Autores")
+                        .description("Criadores das obras do acervo"),
+                new Tag().name("Livros")
+                        .description("Catálogo bibliográfico, paginação, versionamento e autoria"),
+                new Tag().name("Empréstimos")
+                        .description("Prazos, fluxos e devoluções de empréstimos")
         );
 
         return new OpenAPI()
@@ -228,8 +246,12 @@ public class OpenApiConfig {
                         .description(description)
                         .contact(contact)
                         .license(license)
-                        .termsOfService("http://localhost:8080/termos-de-uso"))
-                .servers(List.of(new Server().url("http://localhost:8080").description("Ambiente local")))
+                        .termsOfService("https://biblioteca-api-10lf.onrender.com/termos-de-uso"))
+                .servers(List.of(
+                        new Server()
+                                .url("/")
+                                .description("Servidor atual (local ou produção)")
+                ))
                 .tags(tags)
                 .addSecurityItem(new SecurityRequirement().addList("X-API-Key"))
                 .components(new Components()
