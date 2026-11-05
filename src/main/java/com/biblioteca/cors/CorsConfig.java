@@ -24,7 +24,7 @@ public class CorsConfig {
             @Value("${biblioteca.cors.allowed-origins}") List<String> origensPermitidas) {
 
         CorsConfiguration configuracao = new CorsConfiguration();
-        configuracao.setAllowedOrigins(origensPermitidas);
+        configuracao.setAllowedOriginPatterns(origensPermitidas);
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuracao.setAllowedHeaders(List.of(
                 "Content-Type", "Accept", "X-API-Key", "X-Idempotency-Key", "X-API-Version"));
