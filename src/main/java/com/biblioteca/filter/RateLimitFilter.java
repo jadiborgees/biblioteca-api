@@ -1,4 +1,3 @@
-
 package com.biblioteca.filter;
 
 import com.biblioteca.exception.ErroHttpWriter;
@@ -19,15 +18,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Limite de requisicoes por cliente (IP), com token bucket (Bucket4j).
- *
- * Cada cliente possui uma capacidade de fichas, reabastecidas
- * continuamente ao longo do periodo configurado.
- *
- * Ao exceder, responde 429 com Retry-After.
- * Baldes ociosos sao removidos periodicamente.
- */
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final Map<String, Entrada> baldes = new ConcurrentHashMap<>();
@@ -61,18 +51,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         long agora = System.currentTimeMillis();
 
-        // Diagnostico temporario para verificar o IP recebido pelo Render.
-        System.out.println(
-                "[RATE LIMIT] IP remoto: " + request.getRemoteAddr()
-                        + " | X-Forwarded-For: "
-                        + request.getHeader("X-Forwarded-For")
-        );
-
-        String ip = request.getRemoteAddr();
+        // Identifica o IP real encaminhado pelo proxy.
+        String ipCliente = obterIpCliente(request);
 
         Entrada entrada = baldes.computeIfAbsent(
-                ip,
-                chave -> new Entrada(criarBalde())
+                ipCliente,
+                ip -> new Entrada(criarBalde())
         );
 
         entrada.ultimoAcesso = agora;
@@ -98,13 +82,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
             long usadas = capacidade - restantes;
 
+            long reset = segundos(
+                    usadas * periodo.toNanos() / capacidade
+            );
+
             response.setHeader(
                     "X-RateLimit-Reset",
-                    String.valueOf(
-                            segundos(
-                                    usadas * periodo.toNanos() / capacidade
-                            )
-                    )
+                    String.valueOf(reset)
             );
 
             filterChain.doFilter(request, response);
@@ -130,13 +114,39 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 request,
                 response,
                 HttpStatus.TOO_MANY_REQUESTS,
-                "Limite de Requisicoes Excedido",
+                "Limite de Requisições Excedido",
                 "Limite de " + capacidade
-                        + " requisicoes por "
+                        + " requisições por "
                         + periodo.toSeconds()
                         + " segundos excedido. Tente novamente em "
-                        + espera + " segundo(s)."
+                        + espera
+                        + " segundo(s)."
         );
+    }
+
+    /**
+     * Obtém o IP do cliente encaminhado pelo proxy.
+     */
+    private String obterIpCliente(HttpServletRequest request) {
+
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+
+            String primeiroIp = forwardedFor.split(",")[0].trim();
+
+            if (!primeiroIp.isBlank()) {
+                return primeiroIp;
+            }
+        }
+
+        String realIp = request.getHeader("X-Real-IP");
+
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+
+        return request.getRemoteAddr();
     }
 
     private Bucket criarBalde() {
