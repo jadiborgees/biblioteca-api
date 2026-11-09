@@ -15,7 +15,6 @@ import com.biblioteca.repository.UsuarioRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -37,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/emprestimos")
@@ -47,7 +47,7 @@ import java.time.LocalDate;
 @ApiResponses(value = {
         @ApiResponse(
                 responseCode = "405",
-                description = "Método HTTP não permitido para esta rota",
+                description = "Método HTTP não permitido",
                 content = @Content(
                         mediaType = "application/json",
                         schema = @Schema(implementation = ErroResponse.class)
@@ -87,20 +87,6 @@ public class EmprestimoController {
             description = "Recupera uma lista paginada de todos os empréstimos.",
             operationId = "listarEmprestimos"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Lista de empréstimos recuperada com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Parâmetros de paginação inválidos",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
     public ResponseEntity<PagedModel<EntityModel<Emprestimo>>> listar(
             @ParameterObject Pageable pageable,
             @Parameter(hidden = true)
@@ -126,20 +112,6 @@ public class EmprestimoController {
             description = "Consulta empréstimos por status: ATIVO, DEVOLVIDO, ATRASADO ou CANCELADO.",
             operationId = "buscarEmprestimosPorStatus"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Busca realizada com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Status informado inválido ou parâmetros incorretos",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
     public ResponseEntity<PagedModel<EntityModel<Emprestimo>>> buscarPorStatus(
             @Parameter(
                     description = "Status do empréstimo",
@@ -173,28 +145,6 @@ public class EmprestimoController {
             description = "Retorna os detalhes de um empréstimo específico.",
             operationId = "buscarEmprestimoPorId"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Empréstimo encontrado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "ID inválido",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Empréstimo não localizado",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
     public EntityModel<Emprestimo> buscarPorId(
             @PathVariable
             @Positive(message = "O id deve ser positivo.")
@@ -215,9 +165,10 @@ public class EmprestimoController {
     // =====================================================
 
     @PostMapping
+    @Transactional
     @Operation(
             summary = "Cadastrar novo empréstimo",
-            description = "Registra um empréstimo quando existem exemplares disponíveis. Cada empréstimo reserva uma unidade do estoque.",
+            description = "Registra um empréstimo quando existem exemplares disponíveis e o usuário não possui outro empréstimo ativo ou atrasado do mesmo livro.",
             operationId = "cadastrarEmprestimo"
     )
     @ApiResponses(value = {
@@ -250,7 +201,6 @@ public class EmprestimoController {
                     )
             )
     })
-    @Transactional
     public ResponseEntity<EntityModel<Emprestimo>> cadastrar(
 
             @Parameter(
@@ -283,7 +233,18 @@ public class EmprestimoController {
             );
         }
 
-        // Busca o usuário.
+        if (emprestimo.getDataDevolucao() != null) {
+            throw new RegraNegocioException(
+                    "Um novo empréstimo não pode possuir data de devolução. "
+                            + "A devolução deve ser registrada pela rota específica."
+            );
+        }
+
+        validarDatas(
+                emprestimo.getDataEmprestimo(),
+                emprestimo.getDataDevolucaoPrevista()
+        );
+
         Usuario usuario = usuarioRepository.findById(
                 emprestimo.getUsuario().getId()
         ).orElseThrow(() ->
@@ -292,7 +253,6 @@ public class EmprestimoController {
                 )
         );
 
-        // Bloqueia o livro durante a operação.
         Livro livro = livroRepository.findByIdComBloqueio(
                 emprestimo.getLivro().getId()
         ).orElseThrow(() ->
@@ -301,20 +261,25 @@ public class EmprestimoController {
                 )
         );
 
-        // Valida as datas.
-        if (emprestimo.getDataDevolucaoPrevista() != null
-                && emprestimo.getDataEmprestimo() != null
-                && emprestimo.getDataDevolucaoPrevista()
-                .isBefore(emprestimo.getDataEmprestimo())) {
+        // Impede que o mesmo usuário empreste novamente
+        // o mesmo livro enquanto houver empréstimo ativo ou atrasado.
+        boolean possuiEmprestimoPendente =
+                emprestimoRepository.existsByUsuarioIdAndLivroIdAndStatusIn(
+                        usuario.getId(),
+                        livro.getId(),
+                        List.of(
+                                StatusEmprestimo.ATIVO,
+                                StatusEmprestimo.ATRASADO
+                        )
+                );
 
+        if (possuiEmprestimoPendente) {
             throw new RegraNegocioException(
-                    "A data de devolução prevista não pode ser anterior à data de empréstimo."
+                    "Este usuário já possui um empréstimo ativo ou atrasado deste livro."
             );
         }
 
-        // Verifica o estoque disponível.
         if (livro.getQuantidadeDisponivel() <= 0) {
-
             throw new RegraNegocioException(
                     "Não há exemplares disponíveis deste livro para empréstimo."
             );
@@ -323,13 +288,10 @@ public class EmprestimoController {
         emprestimo.setUsuario(usuario);
         emprestimo.setLivro(livro);
 
-        // Todo novo empréstimo começa como ATIVO.
         if (emprestimo.getStatus() == null) {
-
             emprestimo.setStatus(StatusEmprestimo.ATIVO);
 
         } else if (emprestimo.getStatus() != StatusEmprestimo.ATIVO) {
-
             throw new RegraNegocioException(
                     "Um novo empréstimo deve ser cadastrado com status ATIVO."
             );
@@ -342,7 +304,6 @@ public class EmprestimoController {
 
         livroRepository.save(livro);
 
-        // Salva o empréstimo na mesma transação.
         Emprestimo novoEmprestimo =
                 emprestimoRepository.save(emprestimo);
 
@@ -357,42 +318,12 @@ public class EmprestimoController {
     // =====================================================
 
     @PutMapping("/{id}")
+    @Transactional
     @Operation(
             summary = "Atualizar empréstimo existente",
-            description = "Atualiza os dados gerais de um empréstimo sem permitir alteração direta do status ou troca do livro.",
+            description = "Atualiza os dados gerais de um empréstimo sem permitir alteração direta do status, troca do livro ou registro direto de devolução.",
             operationId = "atualizarEmprestimo"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Empréstimo atualizado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "ID ou dados inválidos",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Empréstimo ou usuário não localizado",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Conflito de regra de negócio",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
-    @Transactional
     public EntityModel<Emprestimo> atualizar(
 
             @PathVariable
@@ -401,42 +332,33 @@ public class EmprestimoController {
 
             @Valid @RequestBody EmprestimoRequestDTO dto) {
 
-        Emprestimo emprestimo = dto.toEntity();
+        Emprestimo dadosRecebidos = dto.toEntity();
 
-        // Bloqueia o empréstimo durante a atualização.
         Emprestimo existente =
                 emprestimoRepository.findByIdComBloqueio(id)
                         .orElseThrow(() ->
                                 new EmprestimoNotFoundException(id)
                         );
 
-        if (emprestimo.getUsuario() != null
-                && emprestimo.getUsuario().getId() != null) {
-
-            Usuario usuario = usuarioRepository.findById(
-                    emprestimo.getUsuario().getId()
-            ).orElseThrow(() ->
-                    new UsuarioNotFoundException(
-                            emprestimo.getUsuario().getId()
-                    )
+        if (dadosRecebidos.getDataDevolucao() != null) {
+            throw new RegraNegocioException(
+                    "A data de devolução não pode ser alterada diretamente. "
+                            + "Utilize a rota específica de devolução."
             );
-
-            existente.setUsuario(usuario);
         }
 
-        // Não permite alterar o status diretamente.
-        if (emprestimo.getStatus() != null
-                && emprestimo.getStatus() != existente.getStatus()) {
+        if (dadosRecebidos.getStatus() != null
+                && dadosRecebidos.getStatus() != existente.getStatus()) {
 
             throw new RegraNegocioException(
-                    "A situação do empréstimo deve ser alterada pelas rotas específicas de devolução ou cancelamento."
+                    "A situação do empréstimo deve ser alterada pelas rotas "
+                            + "específicas de devolução ou cancelamento."
             );
         }
 
-        // Não permite trocar o livro.
-        if (emprestimo.getLivro() != null
-                && emprestimo.getLivro().getId() != null
-                && !emprestimo.getLivro().getId()
+        if (dadosRecebidos.getLivro() != null
+                && dadosRecebidos.getLivro().getId() != null
+                && !dadosRecebidos.getLivro().getId()
                 .equals(existente.getLivro().getId())) {
 
             throw new RegraNegocioException(
@@ -444,26 +366,31 @@ public class EmprestimoController {
             );
         }
 
-        if (emprestimo.getDataDevolucaoPrevista() != null
-                && emprestimo.getDataEmprestimo() != null
-                && emprestimo.getDataDevolucaoPrevista()
-                .isBefore(emprestimo.getDataEmprestimo())) {
+        validarDatas(
+                dadosRecebidos.getDataEmprestimo(),
+                dadosRecebidos.getDataDevolucaoPrevista()
+        );
 
-            throw new RegraNegocioException(
-                    "A data de devolução prevista não pode ser anterior à data de empréstimo."
+        if (dadosRecebidos.getUsuario() != null
+                && dadosRecebidos.getUsuario().getId() != null) {
+
+            Usuario usuario = usuarioRepository.findById(
+                    dadosRecebidos.getUsuario().getId()
+            ).orElseThrow(() ->
+                    new UsuarioNotFoundException(
+                            dadosRecebidos.getUsuario().getId()
+                    )
             );
+
+            existente.setUsuario(usuario);
         }
 
         existente.setDataEmprestimo(
-                emprestimo.getDataEmprestimo()
+                dadosRecebidos.getDataEmprestimo()
         );
 
         existente.setDataDevolucaoPrevista(
-                emprestimo.getDataDevolucaoPrevista()
-        );
-
-        existente.setDataDevolucao(
-                emprestimo.getDataDevolucao()
+                dadosRecebidos.getDataDevolucaoPrevista()
         );
 
         Emprestimo emprestimoAtualizado =
@@ -478,49 +405,18 @@ public class EmprestimoController {
     // =====================================================
 
     @PatchMapping("/{id}/devolver")
+    @Transactional
     @Operation(
             summary = "Devolver livro do empréstimo",
             description = "Registra a devolução e restaura uma unidade ao estoque. Não permite devolução duplicada.",
             operationId = "devolverEmprestimo"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Devolução registrada com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "ID inválido",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Empréstimo não localizado",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Empréstimo já finalizado ou não pode ser devolvido",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
-    @Transactional
     public EntityModel<Emprestimo> devolver(
 
             @PathVariable
             @Positive(message = "O id deve ser positivo.")
             Long id) {
 
-        // Bloqueia o empréstimo para impedir duas devoluções simultâneas.
         Emprestimo existente =
                 emprestimoRepository.findByIdComBloqueio(id)
                         .orElseThrow(() ->
@@ -528,7 +424,6 @@ public class EmprestimoController {
                         );
 
         if (existente.getStatus() == StatusEmprestimo.DEVOLVIDO) {
-
             throw new RegraNegocioException(
                     "Este empréstimo já foi devolvido e finalizado."
             );
@@ -542,7 +437,6 @@ public class EmprestimoController {
             );
         }
 
-        // Restaura exatamente uma unidade.
         restaurarEstoque(
                 existente.getLivro().getId()
         );
@@ -567,28 +461,6 @@ public class EmprestimoController {
             summary = "Cancelar empréstimo",
             description = "Cancela um empréstimo ativo ou atrasado e restaura uma unidade ao estoque. Não permite cancelamento duplicado."
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Empréstimo cancelado com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Empréstimo não localizado",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Empréstimo já finalizado ou cancelado",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
     public EntityModel<Emprestimo> cancelar(
 
             @PathVariable
@@ -602,7 +474,6 @@ public class EmprestimoController {
                         );
 
         if (existente.getStatus() == StatusEmprestimo.CANCELADO) {
-
             throw new RegraNegocioException(
                     "Este empréstimo já foi cancelado."
             );
@@ -616,7 +487,6 @@ public class EmprestimoController {
             );
         }
 
-        // Restaura exatamente uma unidade.
         restaurarEstoque(
                 existente.getLivro().getId()
         );
@@ -636,34 +506,12 @@ public class EmprestimoController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
     @Operation(
             summary = "Excluir empréstimo",
             description = "Remove um registro. Se estiver ativo ou atrasado, restaura uma unidade ao estoque.",
             operationId = "excluirEmprestimo"
     )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Empréstimo excluído com sucesso"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "ID inválido",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Empréstimo não localizado",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErroResponse.class)
-                    )
-            )
-    })
-    @Transactional
     public void excluir(
 
             @PathVariable
@@ -676,7 +524,6 @@ public class EmprestimoController {
                                 new EmprestimoNotFoundException(id)
                         );
 
-        // Só restaura estoque se o empréstimo ainda ocupava exemplar.
         if (existente.getStatus() == StatusEmprestimo.ATIVO
                 || existente.getStatus() == StatusEmprestimo.ATRASADO) {
 
@@ -690,12 +537,33 @@ public class EmprestimoController {
 
 
     // =====================================================
+    // VALIDAR DATAS
+    // =====================================================
+
+    private void validarDatas(
+            LocalDate dataEmprestimo,
+            LocalDate dataDevolucaoPrevista) {
+
+        if (dataEmprestimo == null || dataDevolucaoPrevista == null) {
+            throw new RegraNegocioException(
+                    "A data do empréstimo e a data prevista de devolução são obrigatórias."
+            );
+        }
+
+        if (dataDevolucaoPrevista.isBefore(dataEmprestimo)) {
+            throw new RegraNegocioException(
+                    "A data de devolução prevista não pode ser anterior à data de empréstimo."
+            );
+        }
+    }
+
+
+    // =====================================================
     // RESTAURAR ESTOQUE
     // =====================================================
 
     private void restaurarEstoque(Long livroId) {
 
-        // Bloqueia o livro durante a atualização do estoque.
         Livro livro = livroRepository.findByIdComBloqueio(livroId)
                 .orElseThrow(() ->
                         new LivroNotFoundException(livroId)
@@ -704,9 +572,7 @@ public class EmprestimoController {
         int total = livro.getQuantidadeTotal();
         int disponivel = livro.getQuantidadeDisponivel();
 
-        // Proteção contra estoque acima do total cadastrado.
         if (disponivel >= total) {
-
             throw new RegraNegocioException(
                     "Estoque inconsistente: não é possível devolver "
                             + "um exemplar acima da quantidade total."
