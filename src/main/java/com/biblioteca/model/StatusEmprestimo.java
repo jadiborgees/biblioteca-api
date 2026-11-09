@@ -22,5 +22,8 @@ public enum StatusEmprestimo {
     @Schema(
             description = "Indica que o prazo de devolução do livro expirou e está em atraso."
     )
-    ATRASADO
+    ATRASADO,
+
+    @Schema(description = "Indica que o empréstimo foi cancelado e o exemplar voltou a ficar disponível.")
+    CANCELADO
 }

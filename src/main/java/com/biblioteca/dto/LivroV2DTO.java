@@ -13,49 +13,30 @@ import java.util.Set;
 )
 public class LivroV2DTO {
 
-    @Schema(
-            description = "Identificador único do livro.",
-            example = "17",
-            accessMode = Schema.AccessMode.READ_ONLY
-    )
+    @Schema(description = "Identificador único do livro.", example = "17",
+            accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @Schema(
-            description = "Título completo do livro.",
-            example = "O Alienista",
-            minLength = 2,
-            maxLength = 150
-    )
+    @Schema(description = "Título completo do livro.", example = "O Alienista")
     private String titulo;
 
-    @Schema(
-            description = "Código ISBN-10 ou ISBN-13 do livro.",
-            example = "9786555520012",
-            pattern = "^(?:\\d{9}[\\dX]|\\d{13})$",
-            minLength = 10,
-            maxLength = 13
-    )
+    @Schema(description = "Código ISBN-10 ou ISBN-13 do livro.")
     private String isbn;
 
-    @Schema(
-            description = "Ano de publicação do livro.",
-            example = "1882",
-            minimum = "1000"
-    )
+    @Schema(description = "Ano de publicação do livro.", example = "1882")
     private Integer anoPublicacao;
 
-    @Schema(
-            description = "Conjunto de autores associados ao livro.",
-            implementation = Autor.class
-    )
+    @Schema(description = "Conjunto de autores associados ao livro.")
     private Set<Autor> autores;
 
-    @Schema(
-            description = "Versão da API responsável por retornar os dados.",
-            example = "v2",
-            minLength = 1,
-            maxLength = 10
-    )
+    @Schema(description = "Quantidade total de exemplares.", example = "5")
+    private Integer quantidadeTotal;
+
+    @Schema(description = "Quantidade de exemplares disponíveis.", example = "3")
+    private Integer quantidadeDisponivel;
+
+    @Schema(description = "Versão da API responsável por retornar os dados.",
+            example = "v2")
     private String versaoApi;
 
     public LivroV2DTO(Livro livro, String versaoApi) {
@@ -64,13 +45,40 @@ public class LivroV2DTO {
         this.isbn = livro.getIsbn();
         this.anoPublicacao = livro.getAnoPublicacao();
         this.autores = livro.getAutores();
+        this.quantidadeTotal = livro.getQuantidadeTotal();
+        this.quantidadeDisponivel = livro.getQuantidadeDisponivel();
         this.versaoApi = versaoApi;
     }
 
-    public Long getId() { return id; }
-    public String getTitulo() { return titulo; }
-    public String getIsbn() { return isbn; }
-    public Integer getAnoPublicacao() { return anoPublicacao; }
-    public Set<Autor> getAutores() { return autores; }
-    public String getVersaoApi() { return versaoApi; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getTitulo() {
+        return titulo;
+    }
+
+    public String getIsbn() {
+        return isbn;
+    }
+
+    public Integer getAnoPublicacao() {
+        return anoPublicacao;
+    }
+
+    public Set<Autor> getAutores() {
+        return autores;
+    }
+
+    public Integer getQuantidadeTotal() {
+        return quantidadeTotal;
+    }
+
+    public Integer getQuantidadeDisponivel() {
+        return quantidadeDisponivel;
+    }
+
+    public String getVersaoApi() {
+        return versaoApi;
+    }
 }

@@ -58,6 +58,11 @@ public record LivroRequestDTO(
         @Min(value = 1000, message = "Ano de publicação inválido.")
         Integer anoPublicacao,
 
+        @Schema(description = "URL pública da capa do livro.", example = "https://exemplo.com/capa.jpg")
+        @jakarta.validation.constraints.Pattern(regexp = "^(https?://.*)?$", message = "A URL da capa deve começar com http:// ou https://.")
+        @Size(max = 2048, message = "A URL da capa deve ter no máximo 2048 caracteres.")
+        String capaUrl,
+
         @Schema(
                 description = "Lista de referências dos autores do livro. Deve conter pelo menos um autor cadastrado. Quantidade mínima: 1 autor.",
                 requiredMode = Schema.RequiredMode.REQUIRED
@@ -77,6 +82,7 @@ public record LivroRequestDTO(
         livro.setTitulo(titulo);
         livro.setIsbn(isbn);
         livro.setAnoPublicacao(anoPublicacao);
+        livro.setCapaUrl(capaUrl);
         livro.setAutores(autoresResolvidos);
         return livro;
     }

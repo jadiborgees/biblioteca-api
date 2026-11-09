@@ -489,6 +489,7 @@ public class LivroController {
         existente.setTitulo(livro.getTitulo());
         existente.setIsbn(livro.getIsbn());
         existente.setAnoPublicacao(livro.getAnoPublicacao());
+        existente.setCapaUrl(livro.getCapaUrl());
 
         if (livro.getAutores() != null && !livro.getAutores().isEmpty()) {
             existente.setAutores(livro.getAutores());

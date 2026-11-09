@@ -68,6 +68,22 @@ public class Livro {
     )
     private Integer anoPublicacao;
 
+    @Column(name = "capa_url", length = 2048)
+    @Schema(description = "URL pública da imagem de capa do livro.", example = "https://exemplo.com/capa.jpg")
+    private String capaUrl;
+
+    @NotNull(message = "A quantidade total de exemplares é obrigatória.")
+    @Min(value = 1, message = "A quantidade total deve ser de pelo menos 1 exemplar.")
+    @Column(name = "quantidade_total", nullable = false, columnDefinition = "integer default 5")
+    @Schema(description = "Quantidade total de exemplares cadastrados no acervo.", example = "5")
+    private Integer quantidadeTotal = 5;
+
+    @NotNull(message = "A quantidade disponível é obrigatória.")
+    @Min(value = 0, message = "A quantidade disponível não pode ser negativa.")
+    @Column(name = "quantidade_disponivel", nullable = false, columnDefinition = "integer default 5")
+    @Schema(description = "Quantidade de exemplares disponíveis para empréstimo.", example = "4", accessMode = Schema.AccessMode.READ_ONLY)
+    private Integer quantidadeDisponivel = 5;
+
     @NotEmpty(message = "O livro deve possuir pelo menos um autor.")
     @ManyToMany
     @JoinTable(
@@ -113,6 +129,36 @@ public class Livro {
 
     public void setAnoPublicacao(Integer anoPublicacao) {
         this.anoPublicacao = anoPublicacao;
+    }
+
+    public String getCapaUrl() {
+        return capaUrl;
+    }
+
+    public void setCapaUrl(String capaUrl) {
+        this.capaUrl = capaUrl;
+    }
+
+    public Integer getQuantidadeTotal() {
+        return quantidadeTotal == null ? 5 : quantidadeTotal;
+    }
+
+    public void setQuantidadeTotal(Integer quantidadeTotal) {
+        this.quantidadeTotal = quantidadeTotal;
+    }
+
+    public Integer getQuantidadeDisponivel() {
+        return quantidadeDisponivel == null ? getQuantidadeTotal() : quantidadeDisponivel;
+    }
+
+    public void setQuantidadeDisponivel(Integer quantidadeDisponivel) {
+        this.quantidadeDisponivel = quantidadeDisponivel;
+    }
+
+    @PrePersist
+    public void inicializarEstoque() {
+        if (quantidadeTotal == null || quantidadeTotal < 1) quantidadeTotal = 5;
+        if (quantidadeDisponivel == null) quantidadeDisponivel = quantidadeTotal;
     }
 
     public Set<Autor> getAutores() {
