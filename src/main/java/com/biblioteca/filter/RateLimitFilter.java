@@ -1,3 +1,4 @@
+
 package com.biblioteca.filter;
 
 import com.biblioteca.exception.ErroHttpWriter;
@@ -22,6 +23,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final Map<String, Entrada> baldes = new ConcurrentHashMap<>();
     private final AtomicLong acessos = new AtomicLong();
+    private final Object lockLimpeza = new Object();
 
     private final long capacidade;
     private final Duration periodo;
@@ -32,6 +34,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
             Duration periodo,
             ErroHttpWriter erroHttpWriter
     ) {
+        if (capacidade <= 0) {
+            throw new IllegalArgumentException(
+                    "A capacidade deve ser maior que zero."
+            );
+        }
+
+        if (periodo == null || periodo.isZero() || periodo.isNegative()) {
+            throw new IllegalArgumentException(
+                    "O período deve ser maior que zero."
+            );
+        }
+
         this.capacidade = capacidade;
         this.periodo = periodo;
         this.erroHttpWriter = erroHttpWriter;
@@ -39,7 +53,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return "OPTIONS".equalsIgnoreCase(request.getMethod());
+
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
+        String caminho = request.getRequestURI();
+
+        return caminho.equals("/swagger-ui.html")
+                || caminho.startsWith("/swagger-ui/")
+                || caminho.equals("/swagger-ui")
+                || caminho.startsWith("/v3/api-docs")
+                || caminho.startsWith("/swagger-resources")
+                || caminho.startsWith("/webjars/")
+                || caminho.equals("/favicon.ico")
+                || caminho.startsWith("/h2-console/")
+                || caminho.equals("/termos-de-uso");
     }
 
     @Override
@@ -51,17 +80,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         long agora = System.currentTimeMillis();
 
-        // Identifica o IP real encaminhado pelo proxy.
         String ipCliente = obterIpCliente(request);
 
-        Entrada entrada = baldes.computeIfAbsent(
-                ipCliente,
-                ip -> new Entrada(criarBalde())
-        );
+        Entrada entrada;
 
-        entrada.ultimoAcesso = agora;
+        synchronized (lockLimpeza) {
+            entrada = baldes.computeIfAbsent(
+                    ipCliente,
+                    ip -> new Entrada(criarBalde(), agora)
+            );
 
-        limparOciosos(agora);
+            entrada.ultimoAcesso = agora;
+
+            limparOciosos(agora);
+        }
 
         ConsumptionProbe probe =
                 entrada.balde.tryConsumeAndReturnRemaining(1);
@@ -80,15 +112,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if (probe.isConsumed()) {
 
-            long usadas = capacidade - restantes;
-
-            long reset = segundos(
-                    usadas * periodo.toNanos() / capacidade
-            );
-
             response.setHeader(
                     "X-RateLimit-Reset",
-                    String.valueOf(reset)
+                    String.valueOf(segundos(periodo.toNanos() / capacidade))
             );
 
             filterChain.doFilter(request, response);
@@ -124,15 +150,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         );
     }
 
-    /**
-     * Obtém o IP do cliente encaminhado pelo proxy.
-     */
     private String obterIpCliente(HttpServletRequest request) {
 
         String forwardedFor = request.getHeader("X-Forwarded-For");
 
         if (forwardedFor != null && !forwardedFor.isBlank()) {
-
             String primeiroIp = forwardedFor.split(",")[0].trim();
 
             if (!primeiroIp.isBlank()) {
@@ -151,26 +173,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private Bucket criarBalde() {
 
+        Bandwidth limite = Bandwidth.classic(
+                capacidade,
+                Refill.greedy(capacidade, periodo)
+        );
+
         return Bucket.builder()
-                .addLimit(
-                        Bandwidth.classic(
-                                capacidade,
-                                Refill.greedy(capacidade, periodo)
-                        )
-                )
+                .addLimit(limite)
                 .build();
     }
 
     private void limparOciosos(long agora) {
 
-        if (acessos.incrementAndGet() % 500 == 0) {
-
-            long limite = periodo.toMillis() * 2;
-
-            baldes.values().removeIf(
-                    entrada -> (agora - entrada.ultimoAcesso) > limite
-            );
+        if (acessos.incrementAndGet() % 500 != 0) {
+            return;
         }
+
+        long limite = periodo.toMillis() * 2;
+
+        baldes.entrySet().removeIf(
+                item -> (agora - item.getValue().ultimoAcesso) > limite
+        );
     }
 
     private static long segundos(long nanos) {
@@ -182,9 +205,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         private final Bucket balde;
         private volatile long ultimoAcesso;
 
-        Entrada(Bucket balde) {
+        Entrada(Bucket balde, long ultimoAcesso) {
             this.balde = balde;
-            this.ultimoAcesso = System.currentTimeMillis();
+            this.ultimoAcesso = ultimoAcesso;
         }
     }
 }

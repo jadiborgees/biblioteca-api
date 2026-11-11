@@ -1,3 +1,4 @@
+
 package com.biblioteca.config;
 
 import com.biblioteca.exception.ErroHttpWriter;
@@ -13,34 +14,46 @@ import org.springframework.core.Ordered;
 
 import java.time.Duration;
 
-/**
- * Ordem de execução explícita (a menor executa primeiro):
- * CORS (HIGHEST) -> rate limit (+10) -> autenticação (+20) -> idempotência (+30) -> controller.
- */
 @Configuration
 public class FilterConfig {
 
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(
-            @Value("${biblioteca.rate-limit.capacidade:60}") long capacidade,
+            @Value("${biblioteca.rate-limit.capacidade:30}") long capacidade,
             @Value("${biblioteca.rate-limit.periodo-segundos:60}") long periodoSegundos,
             ErroHttpWriter erroHttpWriter) {
 
-        FilterRegistrationBean<RateLimitFilter> registro = new FilterRegistrationBean<>(
-                new RateLimitFilter(capacidade, Duration.ofSeconds(periodoSegundos), erroHttpWriter));
+        FilterRegistrationBean<RateLimitFilter> registro =
+                new FilterRegistrationBean<>(
+                        new RateLimitFilter(
+                                capacidade,
+                                Duration.ofSeconds(periodoSegundos),
+                                erroHttpWriter
+                        )
+                );
+
         registro.addUrlPatterns("/*");
         registro.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
+
         return registro;
     }
 
     @Bean
     public FilterRegistrationBean<ApiKeyAuthFilter> apiKeyAuthFilter(
-            ApiKeyService apiKeyService, ErroHttpWriter erroHttpWriter) {
+            ApiKeyService apiKeyService,
+            ErroHttpWriter erroHttpWriter) {
 
-        FilterRegistrationBean<ApiKeyAuthFilter> registro = new FilterRegistrationBean<>(
-                new ApiKeyAuthFilter(apiKeyService, erroHttpWriter));
+        FilterRegistrationBean<ApiKeyAuthFilter> registro =
+                new FilterRegistrationBean<>(
+                        new ApiKeyAuthFilter(
+                                apiKeyService,
+                                erroHttpWriter
+                        )
+                );
+
         registro.addUrlPatterns("/*");
         registro.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
+
         return registro;
     }
 
@@ -49,10 +62,17 @@ public class FilterConfig {
             @Value("${biblioteca.idempotency.ttl-horas:24}") long ttlHoras,
             ErroHttpWriter erroHttpWriter) {
 
-        FilterRegistrationBean<IdempotencyFilter> registro = new FilterRegistrationBean<>(
-                new IdempotencyFilter(Duration.ofHours(ttlHoras), erroHttpWriter));
+        FilterRegistrationBean<IdempotencyFilter> registro =
+                new FilterRegistrationBean<>(
+                        new IdempotencyFilter(
+                                Duration.ofHours(ttlHoras),
+                                erroHttpWriter
+                        )
+                );
+
         registro.addUrlPatterns("/*");
         registro.setOrder(Ordered.HIGHEST_PRECEDENCE + 30);
+
         return registro;
     }
 }
