@@ -1,3 +1,4 @@
+
 # Biblioteca API
 
 API REST desenvolvida para o gerenciamento de uma biblioteca comunitária.
@@ -18,6 +19,7 @@ A API permite:
 - Cadastrar, consultar, atualizar e excluir endereços
 - Registrar e gerenciar empréstimos
 - Registrar a devolução de livros
+- Cancelar empréstimos ativos ou atrasados
 - Buscar livros por título
 - Buscar autores por nome
 - Buscar usuários por nome
@@ -62,6 +64,7 @@ A entidade `Emprestimo` utiliza o enum `StatusEmprestimo`, que possui os valores
 - `ATIVO`
 - `DEVOLVIDO`
 - `ATRASADO`
+- `CANCELADO`
 
 ---
 
@@ -79,10 +82,11 @@ A API disponibiliza operações de cadastro, consulta, atualização e exclusão
 
 Os recursos principais possuem operações REST utilizando os métodos `GET`, `POST`, `PUT` e `DELETE`.
 
-Para empréstimos, também está disponível a operação de devolução:
+Para empréstimos, também estão disponíveis as operações de devolução e cancelamento:
 
 ```text
 PATCH /emprestimos/{id}/devolver
+PATCH /emprestimos/{id}/cancelar
 ```
 
 ---
@@ -145,7 +149,7 @@ Os recursos podem apresentar links como:
 - `atualizar` — atualização do recurso
 - `excluir` — exclusão do recurso
 
-Os empréstimos também possuem o link `devolver`, utilizado para registrar a devolução de um livro.
+Os empréstimos também possuem os links `devolver` e `cancelar`, utilizados para registrar a devolução ou o cancelamento de um empréstimo, conforme seu status.
 
 ---
 
@@ -190,7 +194,7 @@ postman/
 Clone o repositório:
 
 ```bash
-git clone [https://github.com/jadiborgees/biblioteca-api.git](https://github.com/jadiborgees/biblioteca-api.git)
+git clone https://github.com/jadiborgees/biblioteca-api.git
 ```
 
 Acesse a pasta do projeto:
@@ -256,8 +260,6 @@ src/main/java/com/biblioteca
 
 ---
 
----
-
 ## Recursos avançados (Parte 2)
 
 ### Autenticação com chave de API
@@ -317,14 +319,16 @@ A chave é escopada ao cliente (hash da `X-API-Key`, ou IP quando não há chave
 
 ### Rate limiting
 
-Cada IP pode fazer 60 requisições por minuto, configurável em `application.properties`:
+O limite utiliza o algoritmo **Token Bucket** do Bucket4j, com capacidade de 30 tokens por IP e reposição gradual de 30 tokens ao longo de 60 segundos. Na prática, após o consumo dos tokens disponíveis, é reposto 1 token a cada 2 segundos. O balde permite rajadas de até 30 requisições quando está cheio.
+
+Configuração em `application.properties`:
 
 ```properties
-biblioteca.rate-limit.capacidade=60
+biblioteca.rate-limit.capacidade=30
 biblioteca.rate-limit.periodo-segundos=60
 ```
 
-Todas as respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`. Ao exceder, a resposta é `429` com `Retry-After`.
+Todas as respostas processadas pelo filtro trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`. Ao exceder o limite, a API retorna `429 Too Many Requests` e o cabeçalho `Retry-After` informa quantos segundos aguardar até a próxima reposição de token.
 
 ### CORS
 
@@ -357,7 +361,31 @@ O arquivo `docs/requisicoes-parte2.http` tem as requisições de teste desta se�
 
 ### Testes automatizados
 
-`Parte2IntegrationTests` e `RateLimitIntegrationTests` cobrem autenticação, níveis, CORS, versionamento, idempotência, validação e rate limit. Execute com `./mvnw test`.
+`Parte2IntegrationTests` e `RateLimitIntegrationTests` cobrem autenticação, níveis, CORS, versionamento, idempotência, validação e rate limit. Execute com:
+
+```bash
+./mvnw test
+```
+
+---
+
+## Códigos HTTP utilizados
+
+| Código | Significado |
+|---|---|
+| 200 | OK — operação concluída. |
+| 201 | Created — recurso criado. |
+| 204 | No Content — exclusão concluída. |
+| 400 | Bad Request — dados ou parâmetros inválidos. |
+| 401 | Unauthorized — autenticação ausente ou inválida. |
+| 403 | Forbidden — permissão insuficiente. |
+| 404 | Not Found — recurso não encontrado. |
+| 405 | Method Not Allowed — método não permitido. |
+| 409 | Conflict — conflito de negócio, integridade ou idempotência em andamento. |
+| 415 | Unsupported Media Type — tipo de conteúdo não suportado. |
+| 422 | Unprocessable Entity — chave de idempotência reutilizada com dados diferentes. |
+| 429 | Too Many Requests — limite de requisições excedido. |
+| 500 | Internal Server Error — erro inesperado. |
 
 ## Autora
 

@@ -218,7 +218,6 @@ public class OpenApiConfig {
 
             /*
              * Resposta 415 somente quando existe @RequestBody.
-             * Isso evita documentar 415 em PATCH sem corpo.
              */
             if (recebeCorpo) {
 
@@ -231,7 +230,6 @@ public class OpenApiConfig {
 
             /*
              * Resposta 422 nas operações POST com idempotência.
-             * O login não utiliza esse mecanismo.
              */
             if (utilizaIdempotencia) {
 
@@ -380,10 +378,9 @@ public class OpenApiConfig {
 
                 ### Limite de requisições
 
-                Cada IP pode fazer 60 requisições por minuto, conforme configuração.
-                Ao exceder, a resposta é `429 Too Many Requests`, com `Retry-After` indicando quantos segundos aguardar.
+                O limite utiliza o algoritmo **Token Bucket** do Bucket4j, com capacidade de 30 tokens por IP e reposição gradual de 30 tokens ao longo de 60 segundos. Após consumir os tokens disponíveis, é reposto 1 token a cada 2 segundos. O balde permite uma rajada inicial de até 30 requisições quando está cheio.
 
-                As respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`.
+                A configuração fica em `biblioteca.rate-limit.capacidade=30` e `biblioteca.rate-limit.periodo-segundos=60`. Ao exceder o limite, a resposta é `429 Too Many Requests`; o cabeçalho `Retry-After` informa quantos segundos aguardar até a próxima reposição de token. As respostas trazem `X-RateLimit-Limit`, `X-RateLimit-Remaining` e `X-RateLimit-Reset`.
 
                 ---
 
@@ -415,22 +412,6 @@ public class OpenApiConfig {
                 - `caminho`: caminho da requisição.
                 - `campos`: detalhes de validação por campo, quando aplicável.
 
-                | Código | Significado |
-                |---|---|
-                | 200 | OK — operação concluída. |
-                | 201 | Created — recurso criado. |
-                | 204 | No Content — exclusão concluída. |
-                | 400 | Bad Request — dados ou parâmetros inválidos. |
-                | 401 | Unauthorized — autenticação ausente ou inválida. |
-                | 403 | Forbidden — permissão insuficiente. |
-                | 404 | Not Found — recurso não encontrado. |
-                | 405 | Method Not Allowed — método não permitido. |
-                | 409 | Conflict — conflito de negócio, integridade ou idempotência em andamento. |
-                | 415 | Unsupported Media Type — tipo de conteúdo não suportado. |
-                | 422 | Unprocessable Entity — chave de idempotência reutilizada com dados diferentes. |
-                | 429 | Too Many Requests — limite de requisições excedido. |
-                | 500 | Internal Server Error — erro inesperado. |
-
                 ---
 
                 ### Ordem de cadastro
@@ -448,8 +429,10 @@ public class OpenApiConfig {
 
                 ### Regras de negócio
 
-                - **Devolução:** `PATCH /emprestimos/{id}/devolver` altera o status para `DEVOLVIDO`. Devolver um empréstimo já finalizado retorna `409`.
-                - **Empréstimo:** um livro não pode ter dois empréstimos ativos ao mesmo tempo.
+                - **Devolução:** `PATCH /emprestimos/{id}/devolver` altera o status para `DEVOLVIDO`, registra a data de devolução e restaura uma unidade ao estoque.
+                - **Cancelamento:** `PATCH /emprestimos/{id}/cancelar` altera o status para `CANCELADO` e restaura uma unidade ao estoque.
+                - **Empréstimo:** o mesmo usuário não pode possuir mais de um empréstimo `ATIVO` ou `ATRASADO` do mesmo livro. Usuários diferentes podem emprestar o mesmo título enquanto houver exemplares disponíveis no estoque.
+                - **Estados:** os status possíveis são `ATIVO`, `ATRASADO`, `DEVOLVIDO` e `CANCELADO`. Devolver ou cancelar um empréstimo que não esteja `ATIVO` ou `ATRASADO` retorna `409 Conflict`.
                 - **Datas:** a data do empréstimo não pode ser futura, e a devolução prevista não pode ser anterior ao empréstimo.
                 - **Ano de publicação:** não pode ser maior que o ano atual.
                 """;
