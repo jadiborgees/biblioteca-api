@@ -31,7 +31,7 @@ public record ApiKeyResumoDTO(
         @Schema(
                 description = "Nível de acesso associado à chave de API.",
                 example = "ADMIN",
-                allowableValues = {"ADMIN", "OPERADOR", "LEITOR"},
+                allowableValues = {"ADMIN", "OPERADOR"},
                 implementation = NivelAcesso.class
         )
         NivelAcesso nivel,

@@ -47,7 +47,7 @@ public class TermosDeUsoController {
 
             2. Acesso. Leituras de livros e autores são públicas. As demais operações exigem uma chave de API válida, enviada no cabeçalho X-API-Key. A chave é pessoal e intransferível.
 
-            3. Níveis de acesso. ADMIN gerencia chaves e tem acesso total. OPERADOR lê e escreve. LEITOR apenas lê. Tentativas além do nível concedido resultam em 403.
+            3. Níveis de acesso. ADMIN possui acesso completo à API, incluindo o gerenciamento de chaves. OPERADOR pode consultar e realizar operações nos recursos da biblioteca, mas não pode gerenciar chaves de API. Tentativas de acesso não permitido resultam em erro 403.
 
             4. Limites de uso. Cada IP pode fazer um número limitado de requisições por minuto. Ao exceder, a API responde 429 e informa, em Retry-After, quantos segundos aguardar.
 

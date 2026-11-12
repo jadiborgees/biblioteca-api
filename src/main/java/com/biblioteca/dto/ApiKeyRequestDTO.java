@@ -28,11 +28,11 @@ public record ApiKeyRequestDTO(
         @Schema(
                 description = "Nível de acesso que será concedido à chave de API.",
                 example = "ADMIN",
-                allowableValues = {"ADMIN", "OPERADOR", "LEITOR"},
+                allowableValues = {"ADMIN", "OPERADOR"},
                 implementation = NivelAcesso.class,
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
-        @NotNull(message = "O nível de acesso é obrigatório (ADMIN, OPERADOR ou LEITOR).")
+        @NotNull(message = "O nível de acesso é obrigatório (ADMIN ou OPERADOR).")
         NivelAcesso nivel
 
 ) {}

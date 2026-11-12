@@ -11,7 +11,7 @@ public record LoginResponseDTO(
 
         @Schema(
                 description = "Token de autenticação utilizado para acessar os endpoints protegidos da API.",
-                example = "eyJhbGciOiJIUzI1NiJ9.exemplo.assinatura",
+                example = "bib-exemplo-chave",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         String token,
@@ -28,7 +28,7 @@ public record LoginResponseDTO(
         @Schema(
                 description = "Nível de acesso associado ao usuário autenticado.",
                 example = "ADMIN",
-                allowableValues = {"ADMIN", "OPERADOR", "LEITOR"},
+                allowableValues = {"ADMIN", "OPERADOR"},
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         String nivelAcesso
