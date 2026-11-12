@@ -69,7 +69,7 @@ public class ApiKey {
     @Schema(
             description = "Nível de acesso associado à chave.",
             example = "ADMIN",
-            allowableValues = {"ADMIN", "OPERADOR", "LEITOR"}
+            allowableValues = {"ADMIN", "OPERADOR"}
     )
     private NivelAcesso nivel;
 
@@ -89,9 +89,15 @@ public class ApiKey {
     )
     private LocalDateTime dataCriacao = LocalDateTime.now();
 
-    public ApiKey() {}
+    public ApiKey() {
+    }
 
-    public ApiKey(String chaveHash, String mascara, String usuario, NivelAcesso nivel) {
+    public ApiKey(
+            String chaveHash,
+            String mascara,
+            String usuario,
+            NivelAcesso nivel
+    ) {
         this.chaveHash = chaveHash;
         this.mascara = mascara;
         this.usuario = usuario;

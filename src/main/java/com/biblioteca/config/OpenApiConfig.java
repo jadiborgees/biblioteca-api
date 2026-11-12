@@ -345,7 +345,6 @@ public class OpenApiConfig {
                 Níveis de acesso:
                 - `ADMIN`: acesso total, inclusive à gestão de chaves.
                 - `OPERADOR`: leitura e escrita nos recursos, exceto gestão de chaves.
-                - `LEITOR`: somente leitura (`GET`) nos recursos protegidos.
 
                 Novas chaves são geradas em `POST /api/keys`.
                 A chave em texto puro é exibida apenas na criação; o servidor guarda somente o hash.

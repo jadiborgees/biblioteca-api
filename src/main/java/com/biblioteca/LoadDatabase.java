@@ -34,14 +34,23 @@ public class LoadDatabase {
 
             log.info("Carregando dados de teste no H2...");
 
-            // Chave administrativa de desenvolvimento
+            // ---------- CHAVES DE API ----------
+
+            // Chave administrativa
             apiKeyService.registrarChaveConhecida(
                     "bib-chave-demo-12345",
-                    "joao@email.com",
+                    "admin@admin.com",
                     NivelAcesso.ADMIN
             );
 
-            // ---------- Autores ----------
+            // Chave do operador
+            apiKeyService.registrarChaveConhecida(
+                    "bib-operador-demo-12345",
+                    "operador@biblioteca.com",
+                    NivelAcesso.OPERADOR
+            );
+
+            // ---------- AUTORES ----------
 
             Autor machado = autor(
                     autorRepository, "Machado de Assis", "Brasileira");
@@ -74,7 +83,7 @@ public class LoadDatabase {
                     autorRepository, "Cecília Meireles", "Brasileira");
 
 
-            // ---------- Livros ----------
+            // ---------- LIVROS ----------
 
             Livro domCasmurro = livro(
                     livroRepository, "Dom Casmurro",
@@ -141,7 +150,7 @@ public class LoadDatabase {
                     "9788526009363", 1953, cecilia);
 
 
-            // ---------- Usuários ----------
+            // ---------- USUÁRIOS ----------
 
             Usuario joao = usuario(
                     usuarioRepository,
@@ -204,7 +213,7 @@ public class LoadDatabase {
             );
 
 
-            // ---------- Empréstimos ----------
+            // ---------- EMPRÉSTIMOS ----------
 
             LocalDate hoje = LocalDate.now();
 
