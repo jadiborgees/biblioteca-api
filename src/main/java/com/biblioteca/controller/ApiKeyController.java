@@ -59,6 +59,14 @@ import java.util.List;
                 )
         ),
         @ApiResponse(
+                responseCode = "429",
+                description = "Limite de requisições excedido",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
                 responseCode = "500",
                 description = "Erro interno no servidor",
                 content = @Content(

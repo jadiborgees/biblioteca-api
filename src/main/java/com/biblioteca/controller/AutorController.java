@@ -34,6 +34,14 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Autores", description = "Gestão dos autores cadastrados na biblioteca")
 @ApiResponses(value = {
         @ApiResponse(
+                responseCode = "429",
+                description = "Limite de requisições excedido. Aguarde antes de tentar novamente.",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
                 responseCode = "405",
                 description = "Método HTTP não permitido para esta rota",
                 content = @Content(
@@ -182,6 +190,22 @@ public class AutorController {
     )
     @ApiResponses(value = {
             @ApiResponse(
+                    responseCode = "401",
+                    description = "Não autenticado. Chave de API ausente ou inválida.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
                     responseCode = "201",
                     description = "Autor cadastrado com sucesso"
             ),
@@ -196,6 +220,14 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "409",
                     description = "Conflito de integridade ou chave de idempotência em processamento",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "415",
+                    description = "Tipo de conteúdo não suportado. Utilize application/json.",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = ErroResponse.class)
@@ -218,8 +250,8 @@ public class AutorController {
                             schema = @Schema(implementation = AutorRequestDTO.class),
                             examples = @ExampleObject(value = """
                                     {
-                                        "nome": "Machado de Assis",
-                                        "nacionalidade": "Brasileira"
+                                         "nome": "Machado de Assis",
+                                         "nacionalidade": "Brasileira"
                                     }
                                     """)
                     )
@@ -254,6 +286,22 @@ public class AutorController {
     )
     @ApiResponses(value = {
             @ApiResponse(
+                    responseCode = "401",
+                    description = "Não autenticado. Chave de API ausente ou inválida.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
                     responseCode = "200",
                     description = "Autor atualizado com sucesso"
             ),
@@ -276,6 +324,14 @@ public class AutorController {
             @ApiResponse(
                     responseCode = "409",
                     description = "Conflito de integridade ao atualizar o autor",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "415",
+                    description = "Tipo de conteúdo não suportado. Utilize application/json.",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = ErroResponse.class)
@@ -315,6 +371,22 @@ public class AutorController {
             description = "Remove um autor da base de dados."
     )
     @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Não autenticado. Chave de API ausente ou inválida.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
             @ApiResponse(
                     responseCode = "204",
                     description = "Autor excluído com sucesso"

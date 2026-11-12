@@ -34,6 +34,14 @@ import org.springframework.web.bind.annotation.*;
                 )
         ),
         @ApiResponse(
+                responseCode = "429",
+                description = "Limite de requisições excedido",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
                 responseCode = "500",
                 description = "Erro interno no servidor",
                 content = @Content(
@@ -71,6 +79,14 @@ public class AuthController {
             @ApiResponse(
                     responseCode = "401",
                     description = "Credenciais inválidas",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "415",
+                    description = "Tipo de conteúdo não suportado",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = ErroResponse.class)

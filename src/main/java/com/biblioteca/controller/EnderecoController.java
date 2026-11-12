@@ -37,6 +37,30 @@ import org.springframework.web.bind.annotation.*;
 )
 @ApiResponses(value = {
         @ApiResponse(
+                responseCode = "401",
+                description = "Não autenticado. Chave de API ausente ou inválida.",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
+                responseCode = "403",
+                description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
+                responseCode = "429",
+                description = "Limite de requisições excedido. Aguarde antes de tentar novamente.",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
                 responseCode = "405",
                 description = "Método HTTP não permitido para esta rota",
                 content = @Content(
@@ -282,6 +306,14 @@ public class EnderecoController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Endereço não localizado pelo ID informado",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Conflito de integridade de dados durante a atualização do endereço.",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = ErroResponse.class)

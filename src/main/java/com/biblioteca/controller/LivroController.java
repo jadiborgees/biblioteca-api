@@ -57,6 +57,14 @@ import java.util.stream.Collectors;
 )
 @ApiResponses(value = {
         @ApiResponse(
+                responseCode = "429",
+                description = "Limite de requisições excedido. Aguarde antes de tentar novamente.",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ErroResponse.class)
+                )
+        ),
+        @ApiResponse(
                 responseCode = "405",
                 description = "Método HTTP não permitido para esta rota",
                 content = @Content(
@@ -312,6 +320,22 @@ public class LivroController {
     )
     @ApiResponses(value = {
             @ApiResponse(
+                    responseCode = "401",
+                    description = "Não autenticado. Chave de API ausente ou inválida.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
                     responseCode = "201",
                     description = "Livro cadastrado com sucesso"
             ),
@@ -368,15 +392,15 @@ public class LivroController {
                             ),
                             examples = @ExampleObject(
                                     value = """
-                            {
-                              "titulo": "Dom Casmurro",
-                              "isbn": "9788535910663",
-                              "anoPublicacao": 1899,
-                              "autores": [
-                                { "id": 1 }
-                              ]
-                            }
-                            """
+                                            {
+                                              "titulo": "Dom Casmurro",
+                                              "isbn": "9788535910663",
+                                              "anoPublicacao": 1899,
+                                              "autores": [
+                                                { "id": 1 }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             )
@@ -422,6 +446,22 @@ public class LivroController {
             description = "Atualiza os dados de um livro já cadastrado."
     )
     @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Não autenticado. Chave de API ausente ou inválida.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
             @ApiResponse(
                     responseCode = "200",
                     description = "Livro atualizado com sucesso"
@@ -511,6 +551,22 @@ public class LivroController {
             description = "Remove um livro do acervo da biblioteca."
     )
     @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Não autenticado. Chave de API ausente ou inválida.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso proibido. O nível de acesso não permite executar esta operação.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErroResponse.class)
+                    )
+            ),
             @ApiResponse(
                     responseCode = "204",
                     description = "Livro excluído com sucesso. A resposta não possui corpo."

@@ -28,6 +28,14 @@ import org.springframework.web.bind.annotation.RestController;
                 )
         ),
         @ApiResponse(
+                responseCode = "429",
+                description = "Limite de requisições excedido",
+                content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(type = "object")
+                )
+        ),
+        @ApiResponse(
                 responseCode = "500",
                 description = "Erro interno no servidor",
                 content = @Content(
